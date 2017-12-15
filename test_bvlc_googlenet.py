@@ -8,27 +8,8 @@ def load_synset_words(synset_file):
         synset_dict[i] = line.strip()
     return synset_dict
 
-def forward_pytorch_old(protofile, weightfile, meanfile, imgfile, outname):
-    net = CaffeNet(protofile, outname)
-    print(net)
-    net.set_mean_file(meanfile)
-    net.load_weights(weightfile)
-    net.eval()
-    #net.print_network()
-    img = Image.open(imgfile) #.convert('RGB')
-    width = img.width
-    height = img.height
-    img = torch.ByteTensor(torch.ByteStorage.from_buffer(img.tobytes()))
-    img = img.view(height, width, 3)#.transpose(0,1).transpose(0,2).contiguous()
-    img = torch.stack([img[:,:,2], img[:,:,1], img[:,:,0]], 0)
-    img = img.view(1, 3, height, width)
-    img = img.float()
-    img = torch.autograd.Variable(img)
-    output = net(img)
-    return output
-
-def forward_pytorch(protofile, weightfile, meanfile, imgfile, outname):
-    net = CaffeNet(protofile, outname)
+def forward_pytorch(protofile, weightfile, meanfile, imgfile):
+    net = CaffeNet(protofile)
     print(net)
     net.load_weights(weightfile)
     net.eval()
@@ -55,7 +36,7 @@ def forward_pytorch(protofile, weightfile, meanfile, imgfile, outname):
 # Reference from:
 # http://caffe.berkeleyvision.org/gathered/examples/cpp_classification.html
 # http://blog.csdn.net/zengdong_1991/article/details/52292417
-def forward_caffe(protofile, weightfile, meanfile, imgfile, outname):
+def forward_caffe(protofile, weightfile, meanfile, imgfile):
     caffe.set_device(0)
     caffe.set_mode_gpu()
     net = caffe.Net(protofile, weightfile, caffe.TEST)
@@ -100,14 +81,15 @@ if __name__ == '__main__':
     caffe_blobs = forward_caffe(protofile, weightfile, meanfile, imgfile)
 
 
-    for blob_name in ["data", "conv1/7x7_s2"]:
+    for blob_name in ["data", "conv1/7x7_s2", "inception_3a/output", "inception_4a/output", "inception_5a/output", "loss3/classifier"]:
         pytorch_data = pytorch_blobs[blob_name].data.numpy()
         caffe_data = caffe_blobs[blob_name].data
         diff = abs(pytorch_data - caffe_data).sum()
-        print(blob_name, diff)
+        print('diff %s %f' % (blob_name, diff))
 
-    if False:
+    if True:
         synset_dict = load_synset_words('synset_words.txt')
-        max_val, max_id = output1.data.view(-1).max(0)
-        print(max_val[0], synset_dict[max_id[0]])
-        print(output2.max(), synset_dict[output2.argmax()])
+        pytorch_prob = pytorch_blobs['prob'].data.view(-1).numpy()
+        caffe_prob = caffe_blobs['prob'].data[0]
+        print(pytorch_prob.max(), synset_dict[pytorch_prob.argmax()])
+        print(caffe_prob.max(), synset_dict[caffe_prob.argmax()])

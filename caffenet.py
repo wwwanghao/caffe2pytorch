@@ -124,7 +124,7 @@ class LRN(nn.Module):
         return x
  
 class CaffeNet(nn.Module):
-    def __init__(self, protofile, outputs):
+    def __init__(self, protofile):
         super(CaffeNet, self).__init__()
         self.net_info = parse_prototxt(protofile)
         self.models = self.create_network(self.net_info)
@@ -141,8 +141,6 @@ class CaffeNet(nn.Module):
         if self.net_info['props'].has_key('mean_file'):
             self.has_mean = True
             self.mean_file = self.net_info['props']['mean_file']
-
-        self.outputs = outputs
 
     def set_mean_file(self, mean_file):
         if mean_file != "":
