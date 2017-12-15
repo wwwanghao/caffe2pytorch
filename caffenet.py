@@ -53,6 +53,23 @@ class Scale(nn.Module):
             self.bias.view(1, nC, 1, 1).expand(nB, nC, nH, nW)
         return x
 
+class Slice(nn.Module):
+   def __init__(self, axis, slice_points):
+       super(Slice, self).__init__()
+       self.axis = axis
+       self.slice_points = slice_points
+
+   def forward(self, x):
+       prev = 0
+       outputs = []
+       for idx, slice_point in enumerate(slice_points):
+           rng = range(prev, slice_point)
+           rng = Variable(torch.LongTensor(rng))
+           y = x.index_select(self.axis, rng)
+           prev = slice_point
+           outputs.append(y)
+       return tuple(outputs)
+
 class Concat(nn.Module):
     def __init__(self, axis):
         super(Concat, self).__init__()
@@ -64,10 +81,10 @@ class Concat(nn.Module):
 class Permute(nn.Module):
     def __init__(self, order0, order1, order2, order3):
         super(Permute, self).__init__()
-        self.order0
-        self.order1
-        self.order2
-        self.order3
+        self.order0 = order0
+        self.order1 = order1
+        self.order2 = order2
+        self.order3 = order3
 
     def forward(self, x):
         x = x.permute(self.order0, self.order1, self.order2, self.order3)
@@ -129,6 +146,41 @@ class LRN(nn.Module):
 
     def forward(self, input):
         return LRNFunc(self.size, self.alpha, self.beta, self.k)(input)
+
+class PriorBox(nn.Module):
+    """Compute priorbox coordinates in center-offset form for each source
+    feature map.
+    Note:
+    This 'layer' has changed between versions of the original SSD
+    paper, so we include both versions, but note v2 is the most tested and most
+    recent version of the paper.
+    """
+    def __init__(self, min_size, clip, step, offset):
+        super(PriorBox, self).__init__()
+        self.min_size = min_size
+        self.clip = clip
+        self.step = step
+        self.offset = offset
+        
+    def forward(self, feature, image):
+        mean = []
+        assert(feature.size(2) == feature.size(3))
+        assert(image.size(2) == image.size(3))
+        feature_size = feature.size(2)
+        image_size = image.size(2)
+        for i, j in product(range(feature_size), repeat=2):
+            f_k = image_size / self.step
+            # unit center x,y
+            cx = (j + self.offset) / f_k
+            cy = (i + self.offset) / f_k
+            s_k = self.min_size/image_size
+            mean += [cx, cy, s_k, s_k]
+
+        # back to torch land
+        output = torch.Tensor(mean).view(-1, 4)
+        if self.clip:
+            output.clamp_(max=1, min=0)
+        return Variable(output)
 
 class CaffeNet(nn.Module):
     def __init__(self, protofile):
@@ -304,10 +356,17 @@ class CaffeNet(nn.Module):
             blob_channels['data'] = int(props['input_shape']['dim'][1])
             blob_height['data'] = int(props['input_shape']['dim'][2])
             blob_width['data'] = int(props['input_shape']['dim'][3])
+
+            image_width = int(props['input_shape']['dim'][3])
+            image_height = int(props['input_shape']['dim'][2])
         else:
             blob_channels['data'] = int(props['input_dim'][1])
             blob_height['data'] = int(props['input_dim'][2])
             blob_width['data'] = int(props['input_dim'][3])
+
+            image_width = int(props['input_dim'][3])
+            image_height = int(props['input_dim'][2])
+
         i = 0
         while i < layer_num:
             layer = layers[i]
@@ -432,13 +491,12 @@ class CaffeNet(nn.Module):
                 i = i + 1
             elif ltype == 'Permute':
                 orders = layer['permute_param']['order']
-                order0 = orders[0]
-                order1 = orders[1]
-                order2 = orders[2]
-                order3 = orders[3]
+                order0 = int(orders[0])
+                order1 = int(orders[1])
+                order2 = int(orders[2])
+                order3 = int(orders[3])
                 models[lname] = Permute(order0, order1, order2, order3)
-                shape = torch.IntTenor([1, blob_channels[bname], blob_width[bname], blob_height[bname]])
-                shape = shape.permute(order0, order1, order2, order3)
+                shape = [1, blob_channels[bname], blob_height[bname], blob_width[bname]]
                 blob_channels[tname] = shape[order1]
                 blob_height[tname] = shape[order2]
                 blob_width[tname] = shape[order3]
@@ -452,12 +510,22 @@ class CaffeNet(nn.Module):
                 i = i + 1
             elif ltype == 'Slice':
                 axis = int(layer['slice_param']['axis'])
+                assert(axis == 1)
+                assert(type(tname) == list)
                 slice_points = layer['slice_param']['slice_point']
+                assert(type(slice_points) == list)
+                assert(len(slice_points) == len(tname) - 1)
+                slice_points = [int(s) for s in slice_points]
+                shape = [1, blob_channels[bname], blob_height[bname], blob_width[bname]]
+                slice_points.append(shape[axis])
                 models[lname] = Slice(axis, slice_points)
-                for tn in tname:
-                    blob_channels[tn] = 1
+                prev = 0
+                for idx, tn in enumerate(tname):
+                    blob_channels[tn] = slice_points[idx] - prev
                     blob_width[tn] = blob_width[bname]
                     blob_height[tn] = blob_height[bname]
+                    prev = slice_points[idx]
+                i = i + 1
             elif ltype == 'Concat':
                 axis = 1
                 if layer.has_key('concat_param') and layer['concat_param'].has_key('axis'):
@@ -469,6 +537,17 @@ class CaffeNet(nn.Module):
                         blob_channels[tname] += blob_channels[bn]
                         blob_width[tname] = blob_width[bn]
                         blob_height[tname] = blob_height[bn]
+                elif axis == 2:
+                    blob_channels[tname] = 
+                i = i + 1
+            elif ltype == 'PriorBox':
+                min_size = int(layer['prior_box_param']['min_size'])
+                clip = (layer['prior_box_param']['clip'] == 'true')
+                step = int(layer['prior_box_param']['step'])
+                offset = float(layer['prior_box_param']['offset'])
+                models[lname] = PriorBox(min_size, clip, step, offset)
+                blob_width[tname] = 1
+                blob_height[tname] = 1
                 i = i + 1
             elif ltype == 'Softmax':
                 models[lname] = nn.Softmax()
