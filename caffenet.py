@@ -8,6 +8,8 @@ from collections import OrderedDict
 from prototxt import *
 import caffe
 import caffe.proto.caffe_pb2 as caffe_pb2
+from layers import LRN
+
 
 class FCView(nn.Module):
     def __init__(self):
@@ -95,9 +97,9 @@ class Flatten(nn.Module):
             left_size = x.size(i) * left_size
         return x.view(left_size, -1)
 
-class LRN(nn.Module):
+class LRN2(nn.Module):
     def __init__(self, local_size=1, alpha=1.0, beta=0.75, ACROSS_CHANNELS=False):
-        super(LRN, self).__init__()
+        super(LRN2, self).__init__()
         self.ACROSS_CHANNELS = ACROSS_CHANNELS
         if self.ACROSS_CHANNELS:
             self.average=nn.AvgPool3d(kernel_size=(local_size, 1, 1), 

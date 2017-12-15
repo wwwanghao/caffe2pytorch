@@ -72,16 +72,16 @@ if __name__ == '__main__':
     from torch.autograd import Variable
     from PIL import Image
 
-    protofile = "bvlc_googlenet/deploy.prototxt" #sys.argv[1]
-    weightfile = "bvlc_googlenet/bvlc_googlenet.caffemodel" #sys.argv[2]
+    protofile = "resnet50/ResNet-50-deploy.prototxt" #sys.argv[1]
+    weightfile = "resnet50/ResNet-50-model.caffemodel" #sys.argv[2]
     imgfile = "cat.jpg" #sys.argv[3]
-    meanfile = "bvlc_googlenet/imagenet_mean.binaryproto" #"ResNet_mean.binaryproto"
+    meanfile = "resnet50/ResNet_mean.binaryproto" #"ResNet_mean.binaryproto"
 
     pytorch_blobs, pytorch_models = forward_pytorch(protofile, weightfile, meanfile, imgfile)
     caffe_blobs, caffe_params = forward_caffe(protofile, weightfile, meanfile, imgfile)
 
     # compare weights
-    for layer_name in ["conv1/7x7_s2"]:
+    for layer_name in ["conv1"]:
         pytorch_weight = pytorch_models[layer_name].weight.data.numpy()
         pytorch_bias = pytorch_models[layer_name].bias.data.numpy()
         caffe_weight = caffe_params[layer_name][0].data
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     
     # compare outputs
     #for blob_name in ["data", "conv1/7x7_s2", "pool1/3x3_s2", "pool1/norm1", "inception_3a/output", "inception_4a/output", "inception_5a/output", "loss3/classifier"]:
-    for blob_name in ["pool1/norm1"]:
+    for blob_name in ["pool1"]:
         pytorch_data = pytorch_blobs[blob_name].data.numpy()
         caffe_data = caffe_blobs[blob_name].data
         diff = abs(pytorch_data - caffe_data).sum()
