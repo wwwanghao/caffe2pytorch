@@ -10,7 +10,7 @@ from prototxt import *
 import caffe
 import caffe.proto.caffe_pb2 as caffe_pb2
 from torch.legacy.nn import SpatialCrossMapLRN as SpatialCrossMapLRNOld
-
+from itertools import product as product
 
 class FCView(nn.Module):
     def __init__(self):
@@ -28,13 +28,25 @@ class Eltwise(nn.Module):
         super(Eltwise, self).__init__()
         self.operation = operation
 
-    def forward(self, x1, x2):
+    def forward(self, *inputs):
         if self.operation == '+' or self.operation == 'SUM':
-            x = x1 + x2
-        if self.operation == '*' or self.operation == 'MUL':
-            x = x1 * x2
-        if self.operation == '/' or self.operation == 'DIV':
-            x = x1 / x2
+            x = inputs[0]
+            for i in range(1,len(inputs)):
+                x = x + inputs[i]
+        elif self.operation == '*' or self.operation == 'MUL':
+            x = inputs[0]
+            for i in range(1,len(inputs)):
+                x = x * inputs[i]
+        elif self.operation == '/' or self.operation == 'DIV':
+            x = inputs[0]
+            for i in range(1,len(inputs)):
+                x = x / inputs[i]
+        elif self.operation == 'MAX':
+            x = inputs[0]
+            for i in range(1,len(inputs)):
+                x =torch.max(x, inputs[i])
+        else:
+            print('forward Eltwise, unknown operator')
         return x
 
 class Scale(nn.Module):
@@ -62,7 +74,7 @@ class Slice(nn.Module):
    def forward(self, x):
        prev = 0
        outputs = []
-       for idx, slice_point in enumerate(slice_points):
+       for idx, slice_point in enumerate(self.slice_points):
            rng = range(prev, slice_point)
            rng = Variable(torch.LongTensor(rng))
            y = x.index_select(self.axis, rng)
@@ -87,7 +99,20 @@ class Permute(nn.Module):
         self.order3 = order3
 
     def forward(self, x):
-        x = x.permute(self.order0, self.order1, self.order2, self.order3)
+        x = x.permute(self.order0, self.order1, self.order2, self.order3).contiguous()
+        return x
+
+class Softmax(nn.Module):
+    def __init__(self, axis):
+        super(Softmax, self).__init__()
+        self.axis = axis
+
+    def forward(self, x):
+        assert(self.axis == len(x.size())-1)
+        orig_size = x.size()        
+        dims = x.size(self.axis)
+        x = F.softmax(x.view(-1, dims))
+        x = x.view(*orig_size)
         return x
 
 class L2Norm(nn.Module):
@@ -113,7 +138,7 @@ class Flatten(nn.Module):
         left_size = 1
         for i in range(self.start_axis):
             left_size = x.size(i) * left_size
-        return x.view(left_size, -1)
+        return x.view(left_size, -1).contiguous()
 
 # function interface, internal, do not use this one!!!
 class LRNFunc(Function):
@@ -146,6 +171,17 @@ class LRN(nn.Module):
 
     def forward(self, input):
         return LRNFunc(self.size, self.alpha, self.beta, self.k)(input)
+
+class Reshape(nn.Module):
+    def __init__(self, dims):
+        super(Reshape, self).__init__()
+        self.dims = dims
+    def forward(self, x):
+        orig_dims = x.size()
+        #assert(len(orig_dims) == len(self.dims))
+        new_dims = [orig_dims[i] if self.dims[i] == 0 else self.dims[i] for i in range(len(self.dims))]
+        
+        return x.view(*new_dims).contiguous()
 
 class PriorBox(nn.Module):
     """Compute priorbox coordinates in center-offset form for each source
@@ -180,7 +216,7 @@ class PriorBox(nn.Module):
         output = torch.Tensor(mean).view(-1, 4)
         if self.clip:
             output.clamp_(max=1, min=0)
-        return Variable(output)
+        return Variable(output.view(1,1,-1).contiguous())
 
 class CaffeNet(nn.Module):
     def __init__(self, protofile):
@@ -336,7 +372,7 @@ class CaffeNet(nn.Module):
                     if len(lmap[lname].blobs) > 1:
                         self.models[lname].bias.data.copy_(torch.from_numpy(np.array(lmap[lname].blobs[1].data)))
                 i = i + 1
-            elif ltype in ['Pooling', 'Eltwise', 'ReLU', 'Region', 'Normalize', 'Permute', 'Flatten', 'Slice', 'Concat', 'Softmax', 'SoftmaxWithLoss', 'LRN', 'Dropout']:
+            elif ltype in ['Pooling', 'Eltwise', 'ReLU', 'Region', 'Normalize', 'Permute', 'Flatten', 'Slice', 'Concat', 'Softmax', 'SoftmaxWithLoss', 'LRN', 'Dropout', 'Reshape', 'PriorBox']:
                 i = i + 1
             else:
                 print('load_weights: unknown type %s' % ltype)
@@ -538,7 +574,11 @@ class CaffeNet(nn.Module):
                         blob_width[tname] = blob_width[bn]
                         blob_height[tname] = blob_height[bn]
                 elif axis == 2:
-                    blob_channels[tname] = 
+                    blob_channels[tname] = blob_channels[bname[0]]
+                    blob_width[tname] = 1
+                    blob_height[tname] = 0
+                    for bn in bname:
+                        blob_height[tname] += blob_height[bn]
                 i = i + 1
             elif ltype == 'PriorBox':
                 min_size = int(layer['prior_box_param']['min_size'])
@@ -546,11 +586,21 @@ class CaffeNet(nn.Module):
                 step = int(layer['prior_box_param']['step'])
                 offset = float(layer['prior_box_param']['offset'])
                 models[lname] = PriorBox(min_size, clip, step, offset)
+                blob_channels[tname] = 1
+                blob_width[tname] = 1
+                blob_height[tname] = 1
+                i = i + 1
+            elif ltype == 'Reshape':
+                reshape_dims = layer['reshape_param']['shape']['dim']
+                reshape_dims = [int(item) for item in reshape_dims]
+                models[lname] = Reshape(reshape_dims)
+                blob_channels[tname] = 1
                 blob_width[tname] = 1
                 blob_height[tname] = 1
                 i = i + 1
             elif ltype == 'Softmax':
-                models[lname] = nn.Softmax()
+                axis = int(layer['softmax_param']['axis'])
+                models[lname] = Softmax(axis)
                 blob_channels[tname] = blob_channels[bname]
                 blob_width[tname] = 1
                 blob_height[tname] = 1
