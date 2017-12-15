@@ -68,6 +68,7 @@ if __name__ == '__main__':
         print('Usage: python caffenet.py model.prototxt model.caffemodel imgfile')
         print('')
         print('e.g. python caffenet.py ResNet-50-deploy.prototxt ResNet-50-model.caffemodel test.png')
+        print('download https://github.com/daijifeng001/R-FCN/blob/master/fetch_data/fetch_model_ResNet50.m')
         exit()
     from torch.autograd import Variable
     from PIL import Image
