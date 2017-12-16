@@ -28,7 +28,7 @@ def forward_pytorch(protofile, weightfile, image):
     blobs = net(image)
     return blobs, net.models
 
-imgfile = 'cat.jpg'
+imgfile = 'data/cat.jpg'
 protofile = 'resnet50/deploy.prototxt'
 weightfile = 'resnet50/resnet50.caffemodel'
 image = load_image(imgfile)
@@ -60,7 +60,7 @@ Each layer in caffe will have a corresponding layer in pytorch.
 ### Verify between caffe and pytorch
 The script verify.py can verify the parameter and output difference between caffe and pytorch.
 ```
-python verify.py --protofile resnet50/deploy.prototxt --weightfile resnet50/resnet50.caffemodel --imgfile cat.jpg --meanB 104.01 --meanG 116.67 --meanR 122.68 --scale 255 --height 224 --width 224 --synset_words synset_words.txt
+python verify.py --protofile resnet50/deploy.prototxt --weightfile resnet50/resnet50.caffemodel --imgfile data/cat.jpg --meanB 104.01 --meanG 116.67 --meanR 122.68 --scale 255 --height 224 --width 224 --synset_words data/synset_words.txt
 ```
 Note: synset_words.txt contains class information, each line represents the description of a class.
 
