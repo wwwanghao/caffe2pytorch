@@ -6,6 +6,7 @@ This tool aims to load caffe prototxt and weights directly in pytorch without ex
 from caffenet import *
 
 def load_image(imgfile):
+    import caffe
     image = caffe.io.load_image(imgfile)
     transformer = caffe.io.Transformer({'data': (1, 3, args.height, args.width)})
     transformer.set_transpose('data', (2, 0, 1))
@@ -57,8 +58,10 @@ Each layer in caffe will have a corresponding layer in pytorch.
 - [ ] LRN
 
 ### Verify between caffe and pytorch
+The script verify.py can verify the parameter and output difference between caffe and pytorch.
+```
 python verify.py --protofile resnet50/deploy.prototxt --weightfile resnet50/resnet50.caffemodel --imgfile cat.jpg --meanB 104.01 --meanG 116.67 --meanR 122.68 --scale 255 --height 224 --width 224 --synset_words synset_words.txt
-
+```
 Note: synset_words.txt is the description of class names, each line represention a class name.
 
 Outputs:
