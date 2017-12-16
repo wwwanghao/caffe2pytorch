@@ -1,3 +1,4 @@
+# 2017.12.16 by xiaohang
 import sys
 from caffenet import *
 import numpy as np
