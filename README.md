@@ -62,7 +62,9 @@ The script verify.py can verify the parameter and output difference between caff
 ```
 python verify.py --protofile resnet50/deploy.prototxt --weightfile resnet50/resnet50.caffemodel --imgfile data/cat.jpg --meanB 104.01 --meanG 116.67 --meanR 122.68 --scale 255 --height 224 --width 224 --synset_words data/synset_words.txt --cuda
 ```
-Note: synset_words.txt contains class information, each line represents the description of a class.
+Note: 
+1. synset_words.txt contains class information, each line represents the description of a class.
+2. resnet50 is downloaded from [BaiduYun](http://pan.baidu.com/s/1kVm4ly3)
 
 Outputs:
 ```
