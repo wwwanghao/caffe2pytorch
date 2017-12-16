@@ -54,15 +54,15 @@ Each layer in caffe will have a corresponding layer in pytorch.
 - [x] Flatten
 - [x] Slice
 - [x] Concat
-- [x] PriorBox
-- [ ] LRN
+- [ ] PriorBox: need further verify
+- [ ] LRN : currrent implementation is different from caffe
 
 ### Verify between caffe and pytorch
 The script verify.py can verify the parameter and output difference between caffe and pytorch.
 ```
 python verify.py --protofile resnet50/deploy.prototxt --weightfile resnet50/resnet50.caffemodel --imgfile cat.jpg --meanB 104.01 --meanG 116.67 --meanR 122.68 --scale 255 --height 224 --width 224 --synset_words synset_words.txt
 ```
-Note: synset_words.txt is the description of class names, each line represention a class name.
+Note: synset_words.txt contains class information, each line represents the description of a class.
 
 Outputs:
 ```
