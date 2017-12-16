@@ -249,11 +249,11 @@ class PriorBox(nn.Module):
         image_height = image.size(2)
         image_width = image.size(3)
         #for i, j in product(range(feature_height), repeat=2):
-        for i in range(feature_width):
-            for j in range(feature_height):
+        for j in range(feature_height):
+            for i in range(feature_width):
                 # unit center x,y
-                cx = (j + self.offset) * self.step / image_height
-                cy = (i + self.offset) * self.step / image_width
+                cx = (i + self.offset) * self.step / image_width
+                cy = (j + self.offset) * self.step / image_height
                 ww = float(self.min_size)/image_width
                 hh = float(self.min_size)/image_height
                 mean += [cx-ww/2.0, cy-hh/2.0, cx+ww/2.0, cy+hh/2.0]
