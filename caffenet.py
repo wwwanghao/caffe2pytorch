@@ -643,16 +643,10 @@ class CaffeNet(nn.Module):
                 blob_height[tname] = 1
                 i = i + 1
             elif ltype == 'SoftmaxWithLoss':
-                loss = nn.CrossEntropyLoss()
+                models[lname] = nn.CrossEntropyLoss()
+                blob_channels[tname] = 1
                 blob_width[tname] = 1
                 blob_height[tname] = 1
-                i = i + 1
-            elif ltype == 'Region':
-                anchors = layer['region_param']['anchors'].strip('"').split(',')
-                self.anchors = [float(j) for j in anchors]
-                self.num_anchors = int(layer['region_param']['num'])
-                self.anchor_step = len(self.anchors)/self.num_anchors
-                self.num_classes = int(layer['region_param']['classes'])
                 i = i + 1
             else:
                 print('create_network: unknown type #%s#' % ltype)
