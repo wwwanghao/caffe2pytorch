@@ -3,6 +3,7 @@ import sys
 from caffenet import *
 import numpy as np
 import argparse
+import torch.nn as nn
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 
@@ -74,7 +75,7 @@ if __name__ == '__main__':
     # compare weights
     print('------------ Parameter Difference ------------')
     for layer_name in layer_names:
-        if type(pytorch_models[layer_name]) == torch.nn.Conv2d:
+        if type(pytorch_models[layer_name]) in [nn.Conv2d, Scale, nn.Linear]:
             pytorch_weight = pytorch_models[layer_name].weight.data.numpy()
             caffe_weight = caffe_params[layer_name][0].data
             weight_diff = abs(pytorch_weight - caffe_weight).sum()
@@ -82,9 +83,17 @@ if __name__ == '__main__':
                 pytorch_bias = pytorch_models[layer_name].bias.data.numpy()
                 caffe_bias = caffe_params[layer_name][1].data
                 bias_diff = abs(pytorch_bias - caffe_bias).sum()
-                print('%-30s weight_diff: %f bias_diff: %f' % (layer_name, weight_diff, bias_diff))
+                print('%-30s       weight_diff: %f        bias_diff: %f' % (layer_name, weight_diff, bias_diff))
             else:
-                print('%-30s weight_diff: %f' % (layer_name, weight_diff))
+                print('%-30s       weight_diff: %f' % (layer_name, weight_diff))
+        elif type(pytorch_models[layer_name]) == nn.BatchNorm2d:
+            pytorch_running_mean = pytorch_models[layer_name].running_mean.numpy()
+            pytorch_running_var = pytorch_models[layer_name].running_var.numpy()
+            caffe_running_mean = caffe_params[layer_name][0].data/caffe_params[layer_name][2].data[0]
+            caffe_running_var = caffe_params[layer_name][1].data/caffe_params[layer_name][2].data[0]
+            running_mean_diff = abs(pytorch_running_mean - caffe_running_mean).sum()
+            running_var_diff = abs(pytorch_running_var - caffe_running_var).sum()
+            print('%-30s running_mean_diff: %f running_var_diff: %f' % (layer_name, running_mean_diff, running_var_diff))
     
     # compare outputs
     print('------------ Output Difference ------------')

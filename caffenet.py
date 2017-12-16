@@ -153,16 +153,16 @@ class L2Norm(nn.Module):
         return x
 
 class Flatten(nn.Module):
-    def __init__(self, start_axis):
+    def __init__(self, axis):
         super(Flatten, self).__init__()
-        self.start_axis = start_axis
+        self.axis = axis
 
     def __repr__(self):
         return 'Flatten(axis=%d)' % self.axis
 
     def forward(self, x):
         left_size = 1
-        for i in range(self.start_axis):
+        for i in range(self.axis):
             left_size = x.size(i) * left_size
         return x.view(left_size, -1).contiguous()
 

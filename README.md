@@ -49,11 +49,11 @@ Each layer in caffe will have a corresponding layer in pytorch.
 - [x] SoftmaxWithLoss. 
 - [x] Dropout
 - [x] Eltwise
-- [x] Normalize
-- [x] Permute
-- [x] Flatten
-- [x] Slice
-- [x] Concat
+- [ ] Normalize
+- [ ] Permute
+- [ ] Flatten
+- [ ] Slice
+- [ ] Concat
 - [ ] PriorBox: need further verify
 - [ ] LRN : currrent implementation is different from caffe
 
@@ -67,59 +67,165 @@ Note: synset_words.txt contains class information, each line represents the desc
 Outputs:
 ```
 ------------ Parameter Difference ------------
-conv1                          weight_diff: 0.000000 bias_diff: 0.000000
-res2a_branch1                  weight_diff: 0.000000
-res2a_branch2a                 weight_diff: 0.000000
-res2a_branch2b                 weight_diff: 0.000000
-res2a_branch2c                 weight_diff: 0.000000
-res2b_branch2a                 weight_diff: 0.000000
-res2b_branch2b                 weight_diff: 0.000000
-res2b_branch2c                 weight_diff: 0.000000
-res2c_branch2a                 weight_diff: 0.000000
-res2c_branch2b                 weight_diff: 0.000000
-res2c_branch2c                 weight_diff: 0.000000
-res3a_branch1                  weight_diff: 0.000000
-res3a_branch2a                 weight_diff: 0.000000
-res3a_branch2b                 weight_diff: 0.000000
-res3a_branch2c                 weight_diff: 0.000000
-res3b_branch2a                 weight_diff: 0.000000
-res3b_branch2b                 weight_diff: 0.000000
-res3b_branch2c                 weight_diff: 0.000000
-res3c_branch2a                 weight_diff: 0.000000
-res3c_branch2b                 weight_diff: 0.000000
-res3c_branch2c                 weight_diff: 0.000000
-res3d_branch2a                 weight_diff: 0.000000
-res3d_branch2b                 weight_diff: 0.000000
-res3d_branch2c                 weight_diff: 0.000000
-res4a_branch1                  weight_diff: 0.000000
-res4a_branch2a                 weight_diff: 0.000000
-res4a_branch2b                 weight_diff: 0.000000
-res4a_branch2c                 weight_diff: 0.000000
-res4b_branch2a                 weight_diff: 0.000000
-res4b_branch2b                 weight_diff: 0.000000
-res4b_branch2c                 weight_diff: 0.000000
-res4c_branch2a                 weight_diff: 0.000000
-res4c_branch2b                 weight_diff: 0.000000
-res4c_branch2c                 weight_diff: 0.000000
-res4d_branch2a                 weight_diff: 0.000000
-res4d_branch2b                 weight_diff: 0.000000
-res4d_branch2c                 weight_diff: 0.000000
-res4e_branch2a                 weight_diff: 0.000000
-res4e_branch2b                 weight_diff: 0.000000
-res4e_branch2c                 weight_diff: 0.000000
-res4f_branch2a                 weight_diff: 0.000000
-res4f_branch2b                 weight_diff: 0.000000
-res4f_branch2c                 weight_diff: 0.000000
-res5a_branch1                  weight_diff: 0.000000
-res5a_branch2a                 weight_diff: 0.000000
-res5a_branch2b                 weight_diff: 0.000000
-res5a_branch2c                 weight_diff: 0.000000
-res5b_branch2a                 weight_diff: 0.000000
-res5b_branch2b                 weight_diff: 0.000000
-res5b_branch2c                 weight_diff: 0.000000
-res5c_branch2a                 weight_diff: 0.000000
-res5c_branch2b                 weight_diff: 0.000000
-res5c_branch2c                 weight_diff: 0.000000
+conv1                                weight_diff: 0.000000        bias_diff: 0.000000
+bn_conv1                       running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale_conv1                          weight_diff: 0.000000        bias_diff: 0.000000
+res2a_branch1                        weight_diff: 0.000000
+bn2a_branch1                   running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2a_branch1                      weight_diff: 0.000000        bias_diff: 0.000000
+res2a_branch2a                       weight_diff: 0.000000
+bn2a_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2a_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res2a_branch2b                       weight_diff: 0.000000
+bn2a_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2a_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res2a_branch2c                       weight_diff: 0.000000
+bn2a_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2a_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res2b_branch2a                       weight_diff: 0.000000
+bn2b_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2b_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res2b_branch2b                       weight_diff: 0.000000
+bn2b_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2b_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res2b_branch2c                       weight_diff: 0.000000
+bn2b_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2b_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res2c_branch2a                       weight_diff: 0.000000
+bn2c_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2c_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res2c_branch2b                       weight_diff: 0.000000
+bn2c_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2c_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res2c_branch2c                       weight_diff: 0.000000
+bn2c_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale2c_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res3a_branch1                        weight_diff: 0.000000
+bn3a_branch1                   running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3a_branch1                      weight_diff: 0.000000        bias_diff: 0.000000
+res3a_branch2a                       weight_diff: 0.000000
+bn3a_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3a_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res3a_branch2b                       weight_diff: 0.000000
+bn3a_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3a_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res3a_branch2c                       weight_diff: 0.000000
+bn3a_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3a_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res3b_branch2a                       weight_diff: 0.000000
+bn3b_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3b_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res3b_branch2b                       weight_diff: 0.000000
+bn3b_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3b_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res3b_branch2c                       weight_diff: 0.000000
+bn3b_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3b_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res3c_branch2a                       weight_diff: 0.000000
+bn3c_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3c_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res3c_branch2b                       weight_diff: 0.000000
+bn3c_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3c_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res3c_branch2c                       weight_diff: 0.000000
+bn3c_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3c_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res3d_branch2a                       weight_diff: 0.000000
+bn3d_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3d_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res3d_branch2b                       weight_diff: 0.000000
+bn3d_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3d_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res3d_branch2c                       weight_diff: 0.000000
+bn3d_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale3d_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res4a_branch1                        weight_diff: 0.000000
+bn4a_branch1                   running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4a_branch1                      weight_diff: 0.000000        bias_diff: 0.000000
+res4a_branch2a                       weight_diff: 0.000000
+bn4a_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4a_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res4a_branch2b                       weight_diff: 0.000000
+bn4a_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4a_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res4a_branch2c                       weight_diff: 0.000000
+bn4a_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4a_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res4b_branch2a                       weight_diff: 0.000000
+bn4b_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4b_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res4b_branch2b                       weight_diff: 0.000000
+bn4b_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4b_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res4b_branch2c                       weight_diff: 0.000000
+bn4b_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4b_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res4c_branch2a                       weight_diff: 0.000000
+bn4c_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4c_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res4c_branch2b                       weight_diff: 0.000000
+bn4c_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4c_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res4c_branch2c                       weight_diff: 0.000000
+bn4c_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4c_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res4d_branch2a                       weight_diff: 0.000000
+bn4d_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4d_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res4d_branch2b                       weight_diff: 0.000000
+bn4d_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4d_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res4d_branch2c                       weight_diff: 0.000000
+bn4d_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4d_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res4e_branch2a                       weight_diff: 0.000000
+bn4e_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4e_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res4e_branch2b                       weight_diff: 0.000000
+bn4e_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4e_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res4e_branch2c                       weight_diff: 0.000000
+bn4e_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4e_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res4f_branch2a                       weight_diff: 0.000000
+bn4f_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4f_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res4f_branch2b                       weight_diff: 0.000000
+bn4f_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4f_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res4f_branch2c                       weight_diff: 0.000000
+bn4f_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale4f_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res5a_branch1                        weight_diff: 0.000000
+bn5a_branch1                   running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5a_branch1                      weight_diff: 0.000000        bias_diff: 0.000000
+res5a_branch2a                       weight_diff: 0.000000
+bn5a_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5a_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res5a_branch2b                       weight_diff: 0.000000
+bn5a_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5a_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res5a_branch2c                       weight_diff: 0.000000
+bn5a_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5a_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res5b_branch2a                       weight_diff: 0.000000
+bn5b_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5b_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res5b_branch2b                       weight_diff: 0.000000
+bn5b_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5b_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res5b_branch2c                       weight_diff: 0.000000
+bn5b_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5b_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
+res5c_branch2a                       weight_diff: 0.000000
+bn5c_branch2a                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5c_branch2a                     weight_diff: 0.000000        bias_diff: 0.000000
+res5c_branch2b                       weight_diff: 0.000000
+bn5c_branch2b                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5c_branch2b                     weight_diff: 0.000000        bias_diff: 0.000000
+res5c_branch2c                       weight_diff: 0.000000
+bn5c_branch2c                  running_mean_diff: 0.000000 running_var_diff: 0.000000
+scale5c_branch2c                     weight_diff: 0.000000        bias_diff: 0.000000
 ------------ Output Difference ------------
 data                           output_diff: 0.000000
 conv1                          output_diff: 0.000000
