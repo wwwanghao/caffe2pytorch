@@ -28,6 +28,9 @@ class Eltwise(nn.Module):
         super(Eltwise, self).__init__()
         self.operation = operation
 
+    def __repr__(self):
+        return 'Eltwise %s' % self.operation
+
     def forward(self, *inputs):
         if self.operation == '+' or self.operation == 'SUM':
             x = inputs[0]
@@ -56,6 +59,9 @@ class Scale(nn.Module):
         self.bias = Parameter(torch.Tensor(channels))
         self.channels = channels
 
+    def __repr__(self):
+        return 'Scale(channels = %d)' % self.channels
+
     def forward(self, x):
         nB = x.size(0)
         nC = x.size(1)
@@ -70,6 +76,9 @@ class Slice(nn.Module):
        super(Slice, self).__init__()
        self.axis = axis
        self.slice_points = slice_points
+
+   def __repr__(self):
+        return 'Slice(axis=%d, slice_points=%s)' % (self.axis, self.slice_points)
 
    def forward(self, x):
        prev = 0
@@ -87,6 +96,9 @@ class Concat(nn.Module):
         super(Concat, self).__init__()
         self.axis = axis
 
+    def __repr__(self):
+        return 'Concat(axis=%d)' % self.axis
+
     def forward(self, *inputs):
         return torch.cat(inputs, self.axis)
 
@@ -98,6 +110,9 @@ class Permute(nn.Module):
         self.order2 = order2
         self.order3 = order3
 
+    def __repr__(self):
+        return 'Permute(%d, %d, %d, %d)' % (self.order0, self.order1, self.order2, self.order3)
+
     def forward(self, x):
         x = x.permute(self.order0, self.order1, self.order2, self.order3).contiguous()
         return x
@@ -106,6 +121,9 @@ class Softmax(nn.Module):
     def __init__(self, axis):
         super(Softmax, self).__init__()
         self.axis = axis
+
+    def __repr__(self):
+        return 'Softmax(axis=%d)' % self.axis
 
     def forward(self, x):
         assert(self.axis == len(x.size())-1)
@@ -125,6 +143,9 @@ class L2Norm(nn.Module):
         self.weight.data *= 0.0
         self.weight.data += self.scale
 
+    def __repr__(self):
+        return 'L2Norm(channels=%d, scale=%f)' % (self.n_channels, self.scale)
+
     def forward(self, x):
         norm = x.pow(2).sum(dim=1, keepdim=True).sqrt()+self.eps
         x = x / norm * self.weight.view(1,-1,1,1)
@@ -134,6 +155,10 @@ class Flatten(nn.Module):
     def __init__(self, start_axis):
         super(Flatten, self).__init__()
         self.start_axis = start_axis
+
+    def __repr__(self):
+        return 'Flatten(axis=%d)' % self.axis
+
     def forward(self, x):
         left_size = 1
         for i in range(self.start_axis):
@@ -169,6 +194,9 @@ class LRN(nn.Module):
         self.beta = beta
         self.k = k
 
+    def __repr__(self):
+        return 'LRN(size=%d, alpha=%f, beta=%f, k=%d)' % (self.size, self.alpha, self.beta, self.k)
+
     def forward(self, input):
         return LRNFunc(self.size, self.alpha, self.beta, self.k)(input)
 
@@ -176,6 +204,10 @@ class Reshape(nn.Module):
     def __init__(self, dims):
         super(Reshape, self).__init__()
         self.dims = dims
+
+    def __repr__(self):
+        return 'Reshape(dims=%s)' % (self.dims)
+
     def forward(self, x):
         orig_dims = x.size()
         #assert(len(orig_dims) == len(self.dims))
@@ -197,6 +229,9 @@ class PriorBox(nn.Module):
         self.clip = clip
         self.step = step
         self.offset = offset
+
+    def __repr__(self):
+        return 'PriorBox(min_size=%d, clip=%d, step=%d, offset=%f)' % (self.min_size, self.clip, self.step, self.offset)
         
     def forward(self, feature, image):
         mean = []
@@ -283,7 +318,7 @@ class CaffeNet(nn.Module):
                 i = i + 1
             input_size = blobs[bnames[0]].size()
             output_size = blobs[tnames[0]].size()
-            print('forward %s %s -> %s' % (lname, input_size, output_size))
+            print('forward %-30s %s -> %s' % (lname, list(input_size), list(output_size)))
 
         return blobs
 #        if type(self.outputs) == list:
@@ -599,7 +634,9 @@ class CaffeNet(nn.Module):
                 blob_height[tname] = 1
                 i = i + 1
             elif ltype == 'Softmax':
-                axis = int(layer['softmax_param']['axis'])
+                axis = 1
+                if layer.has_key('softmax_param') and layer['softmax_param'].has_key('axis'):
+                    axis = int(layer['softmax_param']['axis'])
                 models[lname] = Softmax(axis)
                 blob_channels[tname] = blob_channels[bname]
                 blob_width[tname] = 1
@@ -624,7 +661,7 @@ class CaffeNet(nn.Module):
             input_height = blob_height[bname] if type(bname) != list else blob_height[bname[0]]
             output_width = blob_width[tname] if type(tname) != list else blob_width[tname[0]]
             output_height = blob_height[tname] if type(tname) != list else blob_height[tname[0]]
-            print('create %s (%d x %d) -> (%d x %d)' % (lname, input_width, input_height, output_width, output_height))
+            print('create %-30s (%4d x %4d) -> (%4d x %4d)' % (lname, input_width, input_height, output_width, output_height))
 
         return models
 
