@@ -286,6 +286,8 @@ class CaffeNet(nn.Module):
             self.has_mean = True
             self.mean_file = self.net_info['props']['mean_file']
 
+        self.blobs = None
+
     def set_mean_file(self, mean_file):
         if mean_file != "":
             self.has_mean = True
@@ -295,6 +297,12 @@ class CaffeNet(nn.Module):
             self.has_mean = False
             self.mean_file = ""
 
+    def get_outputs(self, output_names):
+        outputs = []
+        for name in output_names:
+            outputs.append(self.blobs[name])
+        return outputs
+
     def forward(self, data):
         if self.has_mean:
             nB = data.data.size(0)
@@ -303,8 +311,8 @@ class CaffeNet(nn.Module):
             nW = data.data.size(3)
             data = data - Variable(self.mean_img.view(1, nC, nH, nW).expand(nB, nC, nH, nW))
 
-        blobs = OrderedDict()
-        blobs['data'] = data
+        self.blobs = OrderedDict()
+        self.blobs['data'] = data
         
         layers = self.net_info['layers']
         layer_num = len(layers)
@@ -321,20 +329,20 @@ class CaffeNet(nn.Module):
             if ltype in ['Data', 'Accuracy', 'SoftmaxWithLoss', 'Region']:
                 i = i + 1
             else:
-                bdatas = [blobs[name] for name in bnames]
+                bdatas = [self.blobs[name] for name in bnames]
                 tdatas = self._modules[lname](*bdatas)
                 if type(tdatas) != tuple:
                     tdatas = (tdatas,)
 
                 assert(len(tdatas) == len(tnames))
                 for index, tdata in enumerate(tdatas):
-                    blobs[tnames[index]] = tdata
+                    self.blobs[tnames[index]] = tdata
                 i = i + 1
-            input_size = blobs[bnames[0]].size()
-            output_size = blobs[tnames[0]].size()
+            input_size = self.blobs[bnames[0]].size()
+            output_size = self.blobs[tnames[0]].size()
             print('forward %-30s %s -> %s' % (lname, list(input_size), list(output_size)))
 
-        return blobs
+        return self.blobs
 #        if type(self.outputs) == list:
 #            odatas = [blobs[name] for name in self.outputs]
 #            return odatas
