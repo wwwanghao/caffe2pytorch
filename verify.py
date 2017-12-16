@@ -82,19 +82,31 @@ if __name__ == '__main__':
     print('------------ Parameter Difference ------------')
     for layer_name in layer_names:
         if type(pytorch_models[layer_name]) in [nn.Conv2d, nn.Linear, Scale, Normalize]:
-            pytorch_weight = pytorch_models[layer_name].weight.data.numpy()
+            pytorch_weight = pytorch_models[layer_name].weight.data
+            if args.cuda:
+                pytorch_weight = pytorch_weight.cpu().numpy()
+            else:
+                pytorch_weight = pytorch_weight.numpy()
             caffe_weight = caffe_params[layer_name][0].data
             weight_diff = abs(pytorch_weight - caffe_weight).sum()
             if type(pytorch_models[layer_name].bias) == Parameter:
-                pytorch_bias = pytorch_models[layer_name].bias.data.numpy()
+                pytorch_bias = pytorch_models[layer_name].bias.data
+                if args.cuda:
+                    pytorch_bias = pytorch_bias.cpu().numpy()
+                else:
+                    pytorch_bias = pytorch_bias.numpy()
                 caffe_bias = caffe_params[layer_name][1].data
                 bias_diff = abs(pytorch_bias - caffe_bias).sum()
                 print('%-30s       weight_diff: %f        bias_diff: %f' % (layer_name, weight_diff, bias_diff))
             else:
                 print('%-30s       weight_diff: %f' % (layer_name, weight_diff))
         elif type(pytorch_models[layer_name]) == nn.BatchNorm2d:
-            pytorch_running_mean = pytorch_models[layer_name].running_mean.numpy()
-            pytorch_running_var = pytorch_models[layer_name].running_var.numpy()
+            if args.cuda:
+                pytorch_running_mean = pytorch_models[layer_name].running_mean.cpu().numpy()
+                pytorch_running_var = pytorch_models[layer_name].running_var.cpu().numpy()
+            else:
+                pytorch_running_mean = pytorch_models[layer_name].running_mean.numpy()
+                pytorch_running_var = pytorch_models[layer_name].running_var.numpy()
             caffe_running_mean = caffe_params[layer_name][0].data/caffe_params[layer_name][2].data[0]
             caffe_running_var = caffe_params[layer_name][1].data/caffe_params[layer_name][2].data[0]
             running_mean_diff = abs(pytorch_running_mean - caffe_running_mean).sum()
@@ -103,7 +115,10 @@ if __name__ == '__main__':
     
     print('------------ Output Difference ------------')
     for blob_name in blob_names:
-        pytorch_data = pytorch_blobs[blob_name].data.numpy()
+        if args.cuda:
+            pytorch_data = pytorch_blobs[blob_name].data.cpu().numpy()
+        else:
+            pytorch_data = pytorch_blobs[blob_name].data.numpy()
         caffe_data = caffe_blobs[blob_name].data
         diff = abs(pytorch_data - caffe_data).sum()
         print('%-30s output_diff: %f' % (blob_name, diff/pytorch_data.size))
@@ -112,7 +127,10 @@ if __name__ == '__main__':
         print('------------ Classification ------------')
         synset_dict = load_synset_words(args.synset_words)
         if 'prob' in blob_names:
-            pytorch_prob = pytorch_blobs['prob'].data.view(-1).numpy()
+            if args.cuda:
+                pytorch_prob = pytorch_blobs['prob'].data.cpu().view(-1).numpy()
+            else:
+                pytorch_prob = pytorch_blobs['prob'].data.view(-1).numpy()
             caffe_prob = caffe_blobs['prob'].data[0]
             print('pytorch classification top1: %f %s' % (pytorch_prob.max(), synset_dict[pytorch_prob.argmax()]))
             print('caffe   classification top1: %f %s' % (caffe_prob.max(), synset_dict[caffe_prob.argmax()]))

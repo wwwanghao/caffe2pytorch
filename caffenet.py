@@ -85,12 +85,11 @@ class Slice(nn.Module):
        prev = 0
        outputs = []
        is_cuda = x.data.is_cuda
-       #device_id = x.data.get_device()
+       if is_cuda: device_id = x.data.get_device()
        for idx, slice_point in enumerate(self.slice_points):
            rng = range(prev, slice_point)
            rng = torch.LongTensor(rng)
-           if is_cuda:
-               rng = rng.cuda(device_id)
+           if is_cuda: rng = rng.cuda(device_id)
            rng = Variable(rng)
            y = x.index_select(self.axis, rng)
            prev = slice_point
@@ -262,7 +261,11 @@ class PriorBox(nn.Module):
         output1 = output1.view(1,1,-1)
         output2 = output2.contiguous().view(1,1,-1)
         output = torch.cat([output1, output2], 1)
-        return Variable(output)
+        if feature.data.is_cuda:
+            device_id = feature.data.get_device()
+            return Variable(output.cuda(device_id))
+        else:
+            return Variable(output)
 
 class CaffeNet(nn.Module):
     def __init__(self, protofile):

@@ -55,12 +55,12 @@ Each layer in caffe will have a corresponding layer in pytorch.
 - [x] Slice
 - [x] Concat
 - [x] PriorBox
-- [ ] LRN : currrent implementation is different from caffe
+- [x] LRN : gpu version is ok, cpu version produce big difference
 
 ### Verify between caffe and pytorch
 The script verify.py can verify the parameter and output difference between caffe and pytorch.
 ```
-python verify.py --protofile resnet50/deploy.prototxt --weightfile resnet50/resnet50.caffemodel --imgfile data/cat.jpg --meanB 104.01 --meanG 116.67 --meanR 122.68 --scale 255 --height 224 --width 224 --synset_words data/synset_words.txt
+python verify.py --protofile resnet50/deploy.prototxt --weightfile resnet50/resnet50.caffemodel --imgfile data/cat.jpg --meanB 104.01 --meanG 116.67 --meanR 122.68 --scale 255 --height 224 --width 224 --synset_words data/synset_words.txt --cuda
 ```
 Note: synset_words.txt contains class information, each line represents the description of a class.
 
@@ -237,7 +237,7 @@ res2a_branch2c                 output_diff: 0.000000
 res2a                          output_diff: 0.000000
 res2b_branch2a                 output_diff: 0.000000
 res2b_branch2b                 output_diff: 0.000000
-res2b_branch2c                 output_diff: 0.000000
+res2b_branch2c                 output_diff: 0.000001
 res2b                          output_diff: 0.000000
 res2c_branch2a                 output_diff: 0.000000
 res2c_branch2b                 output_diff: 0.000001
@@ -264,44 +264,44 @@ res4a_branch1                  output_diff: 0.000001
 res4a_branch2a                 output_diff: 0.000000
 res4a_branch2b                 output_diff: 0.000000
 res4a_branch2c                 output_diff: 0.000001
-res4a                          output_diff: 0.000000
+res4a                          output_diff: 0.000001
 res4b_branch2a                 output_diff: 0.000000
 res4b_branch2b                 output_diff: 0.000000
-res4b_branch2c                 output_diff: 0.000000
+res4b_branch2c                 output_diff: 0.000001
 res4b                          output_diff: 0.000000
 res4c_branch2a                 output_diff: 0.000000
 res4c_branch2b                 output_diff: 0.000000
-res4c_branch2c                 output_diff: 0.000000
+res4c_branch2c                 output_diff: 0.000001
 res4c                          output_diff: 0.000000
 res4d_branch2a                 output_diff: 0.000000
 res4d_branch2b                 output_diff: 0.000000
-res4d_branch2c                 output_diff: 0.000000
+res4d_branch2c                 output_diff: 0.000001
 res4d                          output_diff: 0.000000
 res4e_branch2a                 output_diff: 0.000000
 res4e_branch2b                 output_diff: 0.000000
-res4e_branch2c                 output_diff: 0.000000
+res4e_branch2c                 output_diff: 0.000001
 res4e                          output_diff: 0.000000
 res4f_branch2a                 output_diff: 0.000000
 res4f_branch2b                 output_diff: 0.000000
-res4f_branch2c                 output_diff: 0.000000
+res4f_branch2c                 output_diff: 0.000001
 res4f                          output_diff: 0.000000
 res5a_branch1                  output_diff: 0.000002
 res5a_branch2a                 output_diff: 0.000000
 res5a_branch2b                 output_diff: 0.000000
 res5a_branch2c                 output_diff: 0.000001
-res5a                          output_diff: 0.000000
+res5a                          output_diff: 0.000001
 res5b_branch2a                 output_diff: 0.000000
 res5b_branch2b                 output_diff: 0.000000
 res5b_branch2c                 output_diff: 0.000001
-res5b                          output_diff: 0.000000
+res5b                          output_diff: 0.000001
 res5c_branch2a                 output_diff: 0.000000
 res5c_branch2b                 output_diff: 0.000000
-res5c_branch2c                 output_diff: 0.000001
-res5c                          output_diff: 0.000000
+res5c_branch2c                 output_diff: 0.000002
+res5c                          output_diff: 0.000001
 pool5                          output_diff: 0.000000
 fc1000                         output_diff: 0.000001
 prob                           output_diff: 0.000000
 ------------ Classification ------------
-pytorch classification top1: 0.193018 n02113023 Pembroke, Pembroke Welsh corgi
+pytorch classification top1: 0.193016 n02113023 Pembroke, Pembroke Welsh corgi
 caffe   classification top1: 0.193018 n02113023 Pembroke, Pembroke Welsh corgi
 ```
