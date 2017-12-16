@@ -27,7 +27,7 @@ def load_synset_words(synset_file):
     return synset_dict
 
 def forward_pytorch(protofile, weightfile, image):
-    net = CaffeNet(protofile)
+    net = CaffeNet(protofile, width=args.width, height=args.height)
     if args.cuda:
         net.cuda()
     print(net)

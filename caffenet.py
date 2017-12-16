@@ -242,16 +242,21 @@ class PriorBox(nn.Module):
         
     def forward(self, feature, image):
         mean = []
-        assert(feature.size(2) == feature.size(3))
-        assert(image.size(2) == image.size(3))
-        feature_size = feature.size(2)
-        image_size = image.size(2)
-        for i, j in product(range(feature_size), repeat=2):
-            # unit center x,y
-            cx = (j + self.offset) * self.step / image_size
-            cy = (i + self.offset) * self.step / image_size
-            wh = float(self.min_size)/image_size
-            mean += [cx-wh/2.0, cy-wh/2.0, cx+wh/2.0, cy+wh/2.0]
+        #assert(feature.size(2) == feature.size(3))
+        #assert(image.size(2) == image.size(3))
+        feature_height = feature.size(2)
+        feature_width = feature.size(3)
+        image_height = image.size(2)
+        image_width = image.size(3)
+        #for i, j in product(range(feature_height), repeat=2):
+        for i in range(feature_width):
+            for j in range(feature_height):
+                # unit center x,y
+                cx = (j + self.offset) * self.step / image_height
+                cy = (i + self.offset) * self.step / image_width
+                ww = float(self.min_size)/image_width
+                hh = float(self.min_size)/image_height
+                mean += [cx-ww/2.0, cy-hh/2.0, cx+ww/2.0, cy+hh/2.0]
 
         # back to torch land
         output1 = torch.Tensor(mean).view(-1, 4)
@@ -268,19 +273,13 @@ class PriorBox(nn.Module):
             return Variable(output)
 
 class CaffeNet(nn.Module):
-    def __init__(self, protofile):
+    def __init__(self, protofile, width=None, height=None):
         super(CaffeNet, self).__init__()
         self.net_info = parse_prototxt(protofile)
-        self.models = self.create_network(self.net_info)
+        self.models = self.create_network(self.net_info, width, height)
         for name,model in self.models.items():
             self.add_module(name, model)
 
-        if self.net_info['props'].has_key('input_shape'):
-            self.width = int(self.net_info['props']['input_shape']['dim'][3])
-            self.height = int(self.net_info['props']['input_shape']['dim'][2])
-        else:
-            self.width = int(self.net_info['props']['input_dim'][3])
-            self.height = int(self.net_info['props']['input_dim'][2])
         self.has_mean = False
         if self.net_info['props'].has_key('mean_file'):
             self.has_mean = True
@@ -439,7 +438,7 @@ class CaffeNet(nn.Module):
                 print('load_weights: unknown type %s' % ltype)
                 i = i + 1
 
-    def create_network(self, net_info):
+    def create_network(self, net_info, input_width = None, input_height = None):
         models = OrderedDict()
         blob_channels = dict()
         blob_width = dict()
@@ -454,15 +453,21 @@ class CaffeNet(nn.Module):
             blob_height['data'] = int(props['input_shape']['dim'][2])
             blob_width['data'] = int(props['input_shape']['dim'][3])
 
-            image_width = int(props['input_shape']['dim'][3])
-            image_height = int(props['input_shape']['dim'][2])
+            self.width = int(props['input_shape']['dim'][3])
+            self.height = int(props['input_shape']['dim'][2])
         else:
             blob_channels['data'] = int(props['input_dim'][1])
             blob_height['data'] = int(props['input_dim'][2])
             blob_width['data'] = int(props['input_dim'][3])
 
-            image_width = int(props['input_dim'][3])
-            image_height = int(props['input_dim'][2])
+            self.width = int(props['input_dim'][3])
+            self.height = int(props['input_dim'][2])
+
+        if input_width != None and input_height != None:
+            blob_width['data'] = input_width
+            blob_height['data'] = input_height
+            self.width = input_width
+            self.height = input_height
 
         i = 0
         while i < layer_num:
