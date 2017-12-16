@@ -49,12 +49,12 @@ Each layer in caffe will have a corresponding layer in pytorch.
 - [x] SoftmaxWithLoss. 
 - [x] Dropout
 - [x] Eltwise
-- [ ] Normalize
-- [ ] Permute
-- [ ] Flatten
-- [ ] Slice
-- [ ] Concat
-- [ ] PriorBox: need further verify
+- [x] Normalize
+- [x] Permute
+- [x] Flatten
+- [x] Slice
+- [x] Concat
+- [x] PriorBox
 - [ ] LRN : currrent implementation is different from caffe
 
 ### Verify between caffe and pytorch

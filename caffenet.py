@@ -84,9 +84,14 @@ class Slice(nn.Module):
    def forward(self, x):
        prev = 0
        outputs = []
+       is_cuda = x.data.is_cuda
+       #device_id = x.data.get_device()
        for idx, slice_point in enumerate(self.slice_points):
            rng = range(prev, slice_point)
-           rng = Variable(torch.LongTensor(rng))
+           rng = torch.LongTensor(rng)
+           if is_cuda:
+               rng = rng.cuda(device_id)
+           rng = Variable(rng)
            y = x.index_select(self.axis, rng)
            prev = slice_point
            outputs.append(y)
@@ -134,18 +139,19 @@ class Softmax(nn.Module):
         x = x.view(*orig_size)
         return x
 
-class L2Norm(nn.Module):
+class Normalize(nn.Module):
     def __init__(self,n_channels, scale=1.0):
-        super(L2Norm,self).__init__()
+        super(Normalize,self).__init__()
         self.n_channels = n_channels
         self.scale = scale
         self.eps = 1e-10
         self.weight = nn.Parameter(torch.Tensor(self.n_channels))
         self.weight.data *= 0.0
         self.weight.data += self.scale
+        self.register_parameter('bias', None)
 
     def __repr__(self):
-        return 'L2Norm(channels=%d, scale=%f)' % (self.n_channels, self.scale)
+        return 'Normalize(channels=%d, scale=%f)' % (self.n_channels, self.scale)
 
     def forward(self, x):
         norm = x.pow(2).sum(dim=1, keepdim=True).sqrt()+self.eps
@@ -224,15 +230,16 @@ class PriorBox(nn.Module):
     paper, so we include both versions, but note v2 is the most tested and most
     recent version of the paper.
     """
-    def __init__(self, min_size, clip, step, offset):
+    def __init__(self, min_size, clip, step, offset, variances):
         super(PriorBox, self).__init__()
         self.min_size = min_size
         self.clip = clip
         self.step = step
         self.offset = offset
+        self.variances = variances
 
     def __repr__(self):
-        return 'PriorBox(min_size=%d, clip=%d, step=%d, offset=%f)' % (self.min_size, self.clip, self.step, self.offset)
+        return 'PriorBox(min_size=%d, clip=%d, step=%d, offset=%f, variances=%s)' % (self.min_size, self.clip, self.step, self.offset, self.variances)
         
     def forward(self, feature, image):
         mean = []
@@ -241,18 +248,21 @@ class PriorBox(nn.Module):
         feature_size = feature.size(2)
         image_size = image.size(2)
         for i, j in product(range(feature_size), repeat=2):
-            f_k = image_size / self.step
             # unit center x,y
-            cx = (j + self.offset) / f_k
-            cy = (i + self.offset) / f_k
-            s_k = self.min_size/image_size
-            mean += [cx, cy, s_k, s_k]
+            cx = (j + self.offset) * self.step / image_size
+            cy = (i + self.offset) * self.step / image_size
+            wh = float(self.min_size)/image_size
+            mean += [cx-wh/2.0, cy-wh/2.0, cx+wh/2.0, cy+wh/2.0]
 
         # back to torch land
-        output = torch.Tensor(mean).view(-1, 4)
+        output1 = torch.Tensor(mean).view(-1, 4)
+        output2 = torch.FloatTensor(self.variances).view(1,4).expand_as(output1)
         if self.clip:
-            output.clamp_(max=1, min=0)
-        return Variable(output.view(1,1,-1).contiguous())
+            output1.clamp_(max=1, min=0)
+        output1 = output1.view(1,1,-1)
+        output2 = output2.contiguous().view(1,1,-1)
+        output = torch.cat([output1, output2], 1)
+        return Variable(output)
 
 class CaffeNet(nn.Module):
     def __init__(self, protofile):
@@ -397,6 +407,10 @@ class CaffeNet(nn.Module):
                 self.models[lname].weight.data.copy_(torch.from_numpy(np.array(lmap[lname].blobs[0].data)))
                 self.models[lname].bias.data.copy_(torch.from_numpy(np.array(lmap[lname].blobs[1].data)))
                 i = i + 1
+            elif ltype == 'Normalize':
+                print('load weights %s' % lname)
+                self.models[lname].weight.data.copy_(torch.from_numpy(np.array(lmap[lname].blobs[0].data)))
+                i = i + 1
             elif ltype == 'InnerProduct':
                 print('load weights %s' % lname)
                 if type(self.models[lname]) == nn.Sequential:
@@ -408,7 +422,7 @@ class CaffeNet(nn.Module):
                     if len(lmap[lname].blobs) > 1:
                         self.models[lname].bias.data.copy_(torch.from_numpy(np.array(lmap[lname].blobs[1].data)))
                 i = i + 1
-            elif ltype in ['Pooling', 'Eltwise', 'ReLU', 'Region', 'Normalize', 'Permute', 'Flatten', 'Slice', 'Concat', 'Softmax', 'SoftmaxWithLoss', 'LRN', 'Dropout', 'Reshape', 'PriorBox']:
+            elif ltype in ['Pooling', 'Eltwise', 'ReLU', 'Region', 'Permute', 'Flatten', 'Slice', 'Concat', 'Softmax', 'SoftmaxWithLoss', 'LRN', 'Dropout', 'Reshape', 'PriorBox']:
                 i = i + 1
             else:
                 print('load_weights: unknown type %s' % ltype)
@@ -547,7 +561,7 @@ class CaffeNet(nn.Module):
             elif ltype == 'Normalize':
                 channels = blob_channels[bname]
                 scale = float(layer['norm_param']['scale_filler']['value'])
-                models[lname] = L2Norm(channels, scale)
+                models[lname] = Normalize(channels, scale)
                 blob_channels[tname] = blob_channels[bname]
                 blob_width[tname] = blob_width[bname]
                 blob_height[tname] = blob_height[bname]
@@ -621,7 +635,9 @@ class CaffeNet(nn.Module):
                 clip = (layer['prior_box_param']['clip'] == 'true')
                 step = int(layer['prior_box_param']['step'])
                 offset = float(layer['prior_box_param']['offset'])
-                models[lname] = PriorBox(min_size, clip, step, offset)
+                variances = layer['prior_box_param']['variance']
+                variances = [float(v) for v in variances]
+                models[lname] = PriorBox(min_size, clip, step, offset, variances)
                 blob_channels[tname] = 1
                 blob_width[tname] = 1
                 blob_height[tname] = 1

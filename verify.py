@@ -28,11 +28,16 @@ def load_synset_words(synset_file):
 
 def forward_pytorch(protofile, weightfile, image):
     net = CaffeNet(protofile)
+    if args.cuda:
+        net.cuda()
     print(net)
     net.load_weights(weightfile)
     net.eval()
     image = torch.from_numpy(image)
-    image = Variable(image)
+    if args.cuda:
+        image = Variable(image.cuda())
+    else:
+        image = Variable(image)
     blobs = net(image)
     return blobs, net.models
 
@@ -58,6 +63,8 @@ if __name__ == '__main__':
     parser.add_argument('--meanR', default=123, type=float)
     parser.add_argument('--scale', default=255, type=float)
     parser.add_argument('--synset_words', default='', type=str)
+    parser.add_argument('--cuda', action='store_true', help='enables cuda')
+
     args = parser.parse_args()
     print(args)
     
@@ -72,10 +79,9 @@ if __name__ == '__main__':
 
     layer_names = pytorch_models.keys()
     blob_names = pytorch_blobs.keys()
-    # compare weights
     print('------------ Parameter Difference ------------')
     for layer_name in layer_names:
-        if type(pytorch_models[layer_name]) in [nn.Conv2d, Scale, nn.Linear]:
+        if type(pytorch_models[layer_name]) in [nn.Conv2d, nn.Linear, Scale, Normalize]:
             pytorch_weight = pytorch_models[layer_name].weight.data.numpy()
             caffe_weight = caffe_params[layer_name][0].data
             weight_diff = abs(pytorch_weight - caffe_weight).sum()
@@ -95,7 +101,6 @@ if __name__ == '__main__':
             running_var_diff = abs(pytorch_running_var - caffe_running_var).sum()
             print('%-30s running_mean_diff: %f running_var_diff: %f' % (layer_name, running_mean_diff, running_var_diff))
     
-    # compare outputs
     print('------------ Output Difference ------------')
     for blob_name in blob_names:
         pytorch_data = pytorch_blobs[blob_name].data.numpy()
