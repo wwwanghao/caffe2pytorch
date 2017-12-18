@@ -43,8 +43,11 @@ def forward_pytorch(protofile, weightfile, image):
 
 # Reference from:
 def forward_caffe(protofile, weightfile, image):
-    caffe.set_device(0)
-    caffe.set_mode_gpu()
+    if args.cuda:
+        caffe.set_device(0)
+        caffe.set_mode_gpu()
+    else:
+        caffe.set_mode_cpu()
     net = caffe.Net(protofile, weightfile, caffe.TEST)
     net.blobs['data'].reshape(1, 3, args.height, args.width)
     net.blobs['data'].data[...] = image
@@ -121,7 +124,7 @@ if __name__ == '__main__':
             pytorch_data = pytorch_blobs[blob_name].data.numpy()
         caffe_data = caffe_blobs[blob_name].data
         diff = abs(pytorch_data - caffe_data).sum()
-        print('%-30s output_diff: %f' % (blob_name, diff/pytorch_data.size))
+        print('%-30s pytorch_shape: %-20s caffe_shape: %-20s output_diff: %f' % (blob_name, pytorch_data.shape, caffe_data.shape, diff/pytorch_data.size))
 
     if args.synset_words != '':
         print('------------ Classification ------------')

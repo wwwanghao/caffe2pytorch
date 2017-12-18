@@ -12,6 +12,7 @@ import caffe
 import caffe.proto.caffe_pb2 as caffe_pb2
 from torch.legacy.nn import SpatialCrossMapLRN as SpatialCrossMapLRNOld
 from itertools import product as product
+from detection import Detection
 
 class FCView(nn.Module):
     def __init__(self):
@@ -654,6 +655,17 @@ class CaffeNet(nn.Module):
                 variances = layer['prior_box_param']['variance']
                 variances = [float(v) for v in variances]
                 models[lname] = PriorBox(min_size, clip, step, offset, variances)
+                blob_channels[tname] = 1
+                blob_width[tname] = 1
+                blob_height[tname] = 1
+                i = i + 1
+            elif ltype == 'DetectionOutput':
+                num_classes = int(layer['detection_output_param']['num_classes'])
+                bkg_label = int(layer['detection_output_param']['background_label_id'])
+                top_k = int(layer['detection_output_param']['nms_param']['top_k'])
+                conf_thresh = float(layer['detection_output_param']['confidence_threshold'])
+                nms_thresh = float(layer['detection_output_param']['nms_param']['nms_threshold'])
+                models[lname] = Detection(num_classes, bkg_label, top_k, conf_thresh, nms_thresh)
                 blob_channels[tname] = 1
                 blob_width[tname] = 1
                 blob_height[tname] = 1
