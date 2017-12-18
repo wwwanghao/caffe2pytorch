@@ -56,6 +56,7 @@ Each layer in caffe will have a corresponding layer in pytorch.
 - [x] Concat
 - [x] PriorBox
 - [x] LRN : gpu version is ok, cpu version produce big difference
+- [x] DetectionOutput: support batchsize=1, num_classes=1 forward
 
 ### Verify between caffe and pytorch
 The script verify.py can verify the parameter and output difference between caffe and pytorch.
