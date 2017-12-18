@@ -287,6 +287,10 @@ class CaffeNet(nn.Module):
             self.mean_file = self.net_info['props']['mean_file']
 
         self.blobs = None
+        self.verbose = True
+
+    def set_verbose(self, verbose):
+        self.verbose = verbose
 
     def set_mean_file(self, mean_file):
         if mean_file != "":
@@ -340,7 +344,8 @@ class CaffeNet(nn.Module):
                 i = i + 1
             input_size = self.blobs[bnames[0]].size()
             output_size = self.blobs[tnames[0]].size()
-            print('forward %-30s %s -> %s' % (lname, list(input_size), list(output_size)))
+            if self.verbose:
+                print('forward %-30s %s -> %s' % (lname, list(input_size), list(output_size)))
 
         return self.blobs
 #        if type(self.outputs) == list:
@@ -433,7 +438,7 @@ class CaffeNet(nn.Module):
                     if len(lmap[lname].blobs) > 1:
                         self.models[lname].bias.data.copy_(torch.from_numpy(np.array(lmap[lname].blobs[1].data)))
                 i = i + 1
-            elif ltype in ['Pooling', 'Eltwise', 'ReLU', 'Region', 'Permute', 'Flatten', 'Slice', 'Concat', 'Softmax', 'SoftmaxWithLoss', 'LRN', 'Dropout', 'Reshape', 'PriorBox']:
+            elif ltype in ['Pooling', 'Eltwise', 'ReLU', 'Region', 'Permute', 'Flatten', 'Slice', 'Concat', 'Softmax', 'SoftmaxWithLoss', 'LRN', 'Dropout', 'Reshape', 'PriorBox', 'DetectionOutput']:
                 i = i + 1
             else:
                 print('load_weights: unknown type %s' % ltype)
