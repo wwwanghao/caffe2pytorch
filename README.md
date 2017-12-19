@@ -37,7 +37,7 @@ pytorch_blobs, pytorch_models = forward_pytorch(protofile, weightfile, image)
 ```
 
 ### Todos
-- [x] support forward classification networks: AlexNet, VGGNet, GoogleNet, [ResNet]((http://pan.baidu.com/s/1kVm4ly3)
+- [x] support forward classification networks: AlexNet, VGGNet, GoogleNet, [ResNet](http://pan.baidu.com/s/1kVm4ly3)
 - [x] support forward detection networks: [SSD300](https://drive.google.com/open?id=0BzKzrI_SkD1_WVVTSmQxU0dVRzA), [S3FD](https://github.com/sfzhang15/SFD), FPN
 
 ### Supported Layers
