@@ -38,7 +38,7 @@ pytorch_blobs, pytorch_models = forward_pytorch(protofile, weightfile, image)
 
 ### Todos
 - [x] support forward classification networks AlexNet, VGGNet, GoogleNet, ResNet
-- [x] support forward detection networks SSD, S3FD, FPN
+- [x] support forward detection networks SSD, [S3FD](https://github.com/sfzhang15/SFD), FPN
 
 ### Supported Layers
 Each layer in caffe will have a corresponding layer in pytorch. 
