@@ -36,6 +36,10 @@ pytorch_blobs, pytorch_models = forward_pytorch(protofile, weightfile, image)
 
 ```
 
+### Todos
+- [x] support forward classification networks AlexNet, VGGNet, GoogleNet, ResNet
+- [ ] support forward detection networks SSD, SFD, FPN
+
 ### Supported Layers
 Each layer in caffe will have a corresponding layer in pytorch. 
 - [x] Convolution
