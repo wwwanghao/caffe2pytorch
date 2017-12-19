@@ -1,5 +1,6 @@
 # 2017.12.16 by xiaohang
 import numpy as np
+import math
 import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
@@ -244,16 +245,19 @@ class PriorBox(nn.Module):
     paper, so we include both versions, but note v2 is the most tested and most
     recent version of the paper.
     """
-    def __init__(self, min_size, clip, step, offset, variances):
+    def __init__(self, min_size, max_size, aspects, clip, flip, step, offset, variances):
         super(PriorBox, self).__init__()
         self.min_size = min_size
+        self.max_size = max_size
+        self.aspects = aspects
         self.clip = clip
+        self.flip = flip
         self.step = step
         self.offset = offset
         self.variances = variances
 
     def __repr__(self):
-        return 'PriorBox(min_size=%d, clip=%d, step=%d, offset=%f, variances=%s)' % (self.min_size, self.clip, self.step, self.offset, self.variances)
+        return 'PriorBox(min_size=%f, max_size=%f, clip=%d, step=%d, offset=%f, variances=%s)' % (self.min_size, self.max_size, self.clip, self.step, self.offset, self.variances)
         
     def forward(self, feature, image):
         mean = []
@@ -269,9 +273,22 @@ class PriorBox(nn.Module):
                 # unit center x,y
                 cx = (i + self.offset) * self.step / image_width
                 cy = (j + self.offset) * self.step / image_height
-                ww = float(self.min_size)/image_width
-                hh = float(self.min_size)/image_height
-                mean += [cx-ww/2.0, cy-hh/2.0, cx+ww/2.0, cy+hh/2.0]
+                mw = float(self.min_size)/image_width
+                mh = float(self.min_size)/image_height
+                mean += [cx-mw/2.0, cy-mh/2.0, cx+mw/2.0, cy+mh/2.0]
+
+                if self.max_size > self.min_size:
+                    ww = math.sqrt(mw * float(self.max_size)/image_width)
+                    hh = math.sqrt(mh * float(self.max_size)/image_height)
+                    mean += [cx-ww/2.0, cy-hh/2.0, cx+ww/2.0, cy+hh/2.0]
+                    for aspect in self.aspects:
+                        ww = mw * math.sqrt(aspect)
+                        hh = mh / math.sqrt(aspect)
+                        mean += [cx-ww/2.0, cy-hh/2.0, cx+ww/2.0, cy+hh/2.0]
+                        if self.flip:
+                            ww = mw / math.sqrt(aspect)
+                            hh = mh * math.sqrt(aspect)
+                            mean += [cx-ww/2.0, cy-hh/2.0, cx+ww/2.0, cy+hh/2.0]
 
         # back to torch land
         output1 = torch.Tensor(mean).view(-1, 4)
@@ -507,10 +524,13 @@ class CaffeNet(nn.Module):
                 stride = int(convolution_param['stride']) if convolution_param.has_key('stride') else 1
                 pad = int(convolution_param['pad']) if convolution_param.has_key('pad') else 0
                 group = int(convolution_param['group']) if convolution_param.has_key('group') else 1
+                dilation = 1
+                if convolution_param.has_key('dilation'):
+                    dilation = int(convolution_param['dilation'])
                 bias = True
                 if convolution_param.has_key('bias_term') and convolution_param['bias_term'] == 'false':
                     bias = False
-                models[lname] = nn.Conv2d(channels, out_filters, kernel_size, stride,pad,group, bias=bias)
+                models[lname] = nn.Conv2d(channels, out_filters, kernel_size=kernel_size, stride=stride, padding=pad, dilation=dilation, groups=group, bias=bias)
                 blob_channels[tname] = out_filters
                 blob_width[tname] = (blob_width[bname] + 2*pad - kernel_size)/stride + 1
                 blob_height[tname] = (blob_height[bname] + 2*pad - kernel_size)/stride + 1
@@ -555,12 +575,8 @@ class CaffeNet(nn.Module):
                 elif pool_type == 'AVE':
                     models[lname] = nn.AvgPool2d(kernel_size, stride, padding=padding, ceil_mode=True)
 
-                if stride > 1:
-                    blob_width[tname] = (blob_width[bname] + 2*padding - kernel_size + 1)/stride + 1
-                    blob_height[tname] = (blob_height[bname] + 2*padding - kernel_size + 1)/stride + 1
-                else:
-                    blob_width[tname] = blob_width[bname] + 2*padding - kernel_size + 1
-                    blob_height[tname] = blob_height[bname] + 2*padding - kernel_size + 1
+                blob_width[tname] = int(math.ceil((blob_width[bname] + 2*padding - kernel_size)/float(stride))) + 1
+                blob_height[tname] = int(math.ceil((blob_height[bname] + 2*padding - kernel_size)/float(stride))) + 1
                 blob_channels[tname] = blob_channels[bname]
                 i = i + 1
             elif ltype == 'Eltwise':
@@ -667,13 +683,24 @@ class CaffeNet(nn.Module):
                         blob_height[tname] += blob_height[bn]
                 i = i + 1
             elif ltype == 'PriorBox':
-                min_size = int(layer['prior_box_param']['min_size'])
+                min_size = float(layer['prior_box_param']['min_size'])
+                max_size = -1
+                if layer['prior_box_param'].has_key('max_size'):
+                    max_size = float(layer['prior_box_param']['max_size'])
+                aspects = []
+                if layer['prior_box_param'].has_key('aspect_ratio'):
+                    print(layer['prior_box_param']['aspect_ratio'])
+                    aspects = layer['prior_box_param']['aspect_ratio']
+                    aspects = [float(aspect) for aspect in aspects]
                 clip = (layer['prior_box_param']['clip'] == 'true')
+                flip = False
+                if layer['prior_box_param'].has_key('flip'):
+                    flip = (layer['prior_box_param']['flip'] == 'true')
                 step = int(layer['prior_box_param']['step'])
                 offset = float(layer['prior_box_param']['offset'])
                 variances = layer['prior_box_param']['variance']
                 variances = [float(v) for v in variances]
-                models[lname] = PriorBox(min_size, clip, step, offset, variances)
+                models[lname] = PriorBox(min_size, max_size, aspects, clip, flip, step, offset, variances)
                 blob_channels[tname] = 1
                 blob_width[tname] = 1
                 blob_height[tname] = 1
@@ -682,9 +709,10 @@ class CaffeNet(nn.Module):
                 num_classes = int(layer['detection_output_param']['num_classes'])
                 bkg_label = int(layer['detection_output_param']['background_label_id'])
                 top_k = int(layer['detection_output_param']['nms_param']['top_k'])
+                keep_top_k = int(layer['detection_output_param']['keep_top_k'])
                 conf_thresh = float(layer['detection_output_param']['confidence_threshold'])
                 nms_thresh = float(layer['detection_output_param']['nms_param']['nms_threshold'])
-                models[lname] = Detection(num_classes, bkg_label, top_k, conf_thresh, nms_thresh)
+                models[lname] = Detection(num_classes, bkg_label, top_k, conf_thresh, nms_thresh, keep_top_k)
                 blob_channels[tname] = 1
                 blob_width[tname] = 1
                 blob_height[tname] = 1

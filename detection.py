@@ -250,7 +250,7 @@ class Detection(nn.Module):
     scores and threshold to a top_k number of output predictions for both
     confidence score and locations.
     """
-    def __init__(self, num_classes, bkg_label, top_k, conf_thresh, nms_thresh):
+    def __init__(self, num_classes, bkg_label, top_k, conf_thresh, nms_thresh, keep_top_k):
         super(Detection, self).__init__()
         self.num_classes = num_classes
         self.background_label = bkg_label
@@ -260,6 +260,7 @@ class Detection(nn.Module):
         if nms_thresh <= 0:
             raise ValueError('nms_threshold must be non negative.')
         self.conf_thresh = conf_thresh
+        self.keep_top_k = keep_top_k
         self.variance = [0.1, 0.2]
 
     def forward(self, loc, conf, prior):
@@ -288,28 +289,58 @@ class Detection(nn.Module):
 
         # Decode predictions into bboxes.
         assert(num == 1)
-        assert(num_classes == 2)
-        loc_data = loc_data[0].view(-1, 4).clone()
-        prior_data = center_size(prior_data[0][0].view(-1,4).clone())
-        decoded_boxes = decode(loc_data, prior_data, self.variance)
-        #decoded_boxes = clip_boxes(decoded_boxes)
-        
-        # For each class, perform nms
-        conf_scores = conf_preds[0].clone()
-        num_det = 0
-        cl = 1
-        c_mask = conf_scores[cl].gt(self.conf_thresh)
-        if c_mask.sum() == 0:
-            return Variable(torch.Tensor([0.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]).view(1,1,1,7).type_as(conf.data))
-        scores = conf_scores[cl][c_mask]
-        l_mask = c_mask.unsqueeze(1).expand_as(decoded_boxes)
-        boxes = decoded_boxes[l_mask].view(-1, 4)
-        # idx of highest scoring and non-overlapping boxes per class
-        ids, count = nms(boxes, scores, self.nms_thresh, self.top_k)
-        count = min(count, 750)
-        extra_info = torch.FloatTensor([0.0, 1.0]).view(1,2).expand(num_priors,2).type_as(conf.data)
-        output = torch.cat((extra_info[ids[:count]], scores[ids[:count]].unsqueeze(1),
-                       boxes[ids[:count]]), 1)
+        if num_classes == 2:
+            loc_data = loc_data[0].view(-1, 4).clone()
+            prior_data = center_size(prior_data[0][0].view(-1,4).clone())
+            decoded_boxes = decode(loc_data, prior_data, self.variance)
+            #decoded_boxes = clip_boxes(decoded_boxes)
             
-        #flt = self.output[:, :, :count, :].contiguous().view(-1, 5)
-        return Variable(output.unsqueeze(0).unsqueeze(0))
+            # For each class, perform nms
+            conf_scores = conf_preds[0].clone()
+            num_det = 0
+            cl = 1
+            c_mask = conf_scores[cl].gt(self.conf_thresh)
+            if c_mask.sum() == 0:
+                return Variable(torch.Tensor([0.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]).view(1,1,1,7).type_as(conf.data))
+            scores = conf_scores[cl][c_mask]
+            l_mask = c_mask.unsqueeze(1).expand_as(decoded_boxes)
+            boxes = decoded_boxes[l_mask].view(-1, 4)
+            # idx of highest scoring and non-overlapping boxes per class
+            ids, count = nms(boxes, scores, self.nms_thresh, self.top_k)
+            count = min(count, self.keep_top_k)
+            extra_info = torch.FloatTensor([0.0, 1.0]).view(1,2).expand(num_priors,2).type_as(conf.data)
+            output = torch.cat((extra_info[ids[:count]], scores[ids[:count]].unsqueeze(1),
+                           boxes[ids[:count]]), 1)
+                
+            #flt = self.output[:, :, :count, :].contiguous().view(-1, 5)
+            return Variable(output.unsqueeze(0).unsqueeze(0))
+        else:
+            loc_data = loc_data[0].view(-1, 4).clone()
+            prior_data = center_size(prior_data[0][0].view(-1,4).clone())
+            decoded_boxes = decode(loc_data, prior_data, self.variance)
+            #decoded_boxes = clip_boxes(decoded_boxes)
+            
+            # For each class, perform nms
+            conf_scores = conf_preds[0].clone()
+            num_det = 0
+            cl = 1
+            outputs = []
+            for cl in range(1, num_classes):
+                c_mask = conf_scores[cl].gt(self.conf_thresh)
+                if c_mask.sum() == 0:
+                    continue
+                scores = conf_scores[cl][c_mask]
+                l_mask = c_mask.unsqueeze(1).expand_as(decoded_boxes)
+                boxes = decoded_boxes[l_mask].view(-1, 4)
+                # idx of highest scoring and non-overlapping boxes per class
+                ids, count = nms(boxes, scores, self.nms_thresh, self.top_k)
+                count = min(count, self.keep_top_k)
+                extra_info = torch.FloatTensor([0.0, cl]).view(1,2).expand(count,2).type_as(conf.data)
+                output = torch.cat((extra_info, scores[ids[:count]].unsqueeze(1),
+                               boxes[ids[:count]]), 1)
+                outputs.append(output)
+                    
+            outputs = torch.cat(outputs, 0)
+                #flt = self.output[:, :, :count, :].contiguous().view(-1, 5)
+            return Variable(outputs.unsqueeze(0).unsqueeze(0))
+
