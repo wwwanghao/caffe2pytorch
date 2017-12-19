@@ -240,6 +240,10 @@ def nms(boxes, scores, overlap=0.5, top_k=200):
         idx = idx[IoU.le(overlap)]
     return keep, count
 
+def clip_boxes(boxes):
+    boxes = torch.clamp(boxes, min = 0.0, max = 1.0)
+    return boxes
+
 class Detection(nn.Module):
     """At test time, Detect is the final layer of SSD.  Decode location preds,
     apply non-maximum suppression to location predictions based on conf
@@ -288,12 +292,15 @@ class Detection(nn.Module):
         loc_data = loc_data[0].view(-1, 4).clone()
         prior_data = center_size(prior_data[0][0].view(-1,4).clone())
         decoded_boxes = decode(loc_data, prior_data, self.variance)
+        #decoded_boxes = clip_boxes(decoded_boxes)
         
         # For each class, perform nms
         conf_scores = conf_preds[0].clone()
         num_det = 0
         cl = 1
         c_mask = conf_scores[cl].gt(self.conf_thresh)
+        if c_mask.sum() == 0:
+            return Variable(torch.Tensor([0.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]).view(1,1,1,7).type_as(conf.data))
         scores = conf_scores[cl][c_mask]
         l_mask = c_mask.unsqueeze(1).expand_as(decoded_boxes)
         boxes = decoded_boxes[l_mask].view(-1, 4)

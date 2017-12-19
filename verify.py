@@ -6,6 +6,7 @@ import argparse
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
+import time
 
 def load_image(imgfile):
     image = caffe.io.load_image(imgfile)
@@ -38,8 +39,10 @@ def forward_pytorch(protofile, weightfile, image):
         image = Variable(image.cuda())
     else:
         image = Variable(image)
+    t0 = time.time()
     blobs = net(image)
-    return blobs, net.models
+    t1 = time.time()
+    return t1-t0, blobs, net.models
 
 # Reference from:
 def forward_caffe(protofile, weightfile, image):
@@ -51,8 +54,10 @@ def forward_caffe(protofile, weightfile, image):
     net = caffe.Net(protofile, weightfile, caffe.TEST)
     net.blobs['data'].reshape(1, 3, args.height, args.width)
     net.blobs['data'].data[...] = image
+    t0 = time.time()
     output = net.forward()
-    return net.blobs, net.params
+    t1 = time.time()
+    return t1-t0, net.blobs, net.params
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='convert caffe to pytorch')
@@ -77,8 +82,11 @@ if __name__ == '__main__':
     imgfile = args.imgfile
 
     image = load_image(imgfile)
-    pytorch_blobs, pytorch_models = forward_pytorch(protofile, weightfile, image)
-    caffe_blobs, caffe_params = forward_caffe(protofile, weightfile, image)
+    time_pytorch, pytorch_blobs, pytorch_models = forward_pytorch(protofile, weightfile, image)
+    time_caffe, caffe_blobs, caffe_params = forward_caffe(protofile, weightfile, image)
+
+    print('pytorch forward time %d', time_pytorch)
+    print('caffe forward time %d', time_caffe)
 
     layer_names = pytorch_models.keys()
     blob_names = pytorch_blobs.keys()
