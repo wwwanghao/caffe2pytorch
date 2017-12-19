@@ -306,6 +306,7 @@ class Detection(nn.Module):
         boxes = decoded_boxes[l_mask].view(-1, 4)
         # idx of highest scoring and non-overlapping boxes per class
         ids, count = nms(boxes, scores, self.nms_thresh, self.top_k)
+        count = min(count, 750)
         extra_info = torch.FloatTensor([0.0, 1.0]).view(1,2).expand(num_priors,2).type_as(conf.data)
         output = torch.cat((extra_info[ids[:count]], scores[ids[:count]].unsqueeze(1),
                        boxes[ids[:count]]), 1)
