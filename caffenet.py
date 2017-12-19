@@ -73,6 +73,20 @@ class Scale(nn.Module):
             self.bias.view(1, nC, 1, 1).expand(nB, nC, nH, nW)
         return x
 
+class Crop(nn.Module):
+    def __init__(self, axis, offset):
+        super(Crop, self).__init__()
+        self.axis = axis
+        self.offset = offset
+    def __repr__(self):
+        return 'Crop(axis=%d, offset=%d)' % (self.axis, self.offset)
+
+    def forward(self, x, ref):
+        for axis in range(self.axis, x.dim()):
+            ref_size = ref.size(axis)
+            x = x.index_select(axis, Variable(torch.arange(self.offset, self.offset + ref_size).type_as(x.data).long()))
+        return x
+
 class Slice(nn.Module):
    def __init__(self, axis, slice_points):
        super(Slice, self).__init__()
@@ -398,7 +412,7 @@ class CaffeNet(nn.Module):
             layer = layers[i]
             lname = layer['name']
             ltype = layer['type']
-            if ltype == 'Convolution':
+            if ltype in ['Convolution', 'Deconvolution']:
                 print('load weights %s' % lname)
                 convolution_param = layer['convolution_param']
                 bias = True
@@ -674,6 +688,35 @@ class CaffeNet(nn.Module):
                 blob_channels[tname] = 1
                 blob_width[tname] = 1
                 blob_height[tname] = 1
+                i = i + 1
+            elif ltype == 'Crop':
+                axis = int(layer['crop_param']['axis'])
+                offset = int(layer['crop_param']['offset'])
+                models[lname] = Crop(axis, offset)
+                blob_channels[tname] = blob_channels[bname[0]]
+                blob_width[tname] = blob_width[bname[0]]
+                blob_height[tname] = blob_height[bname[0]]
+                i = i + 1
+            elif ltype == 'Deconvolution':
+                #models[lname] = nn.UpsamplingBilinear2d(scale_factor=2)
+                #models[lname] = nn.Upsample(scale_factor=2, mode='bilinear')
+                in_channels = blob_channels[bname]
+                out_channels = int(layer['convolution_param']['num_output'])
+                group = int(layer['convolution_param']['group'])
+                kernel_w = int(layer['convolution_param']['kernel_w'])
+                kernel_h = int(layer['convolution_param']['kernel_h'])
+                stride_w = int(layer['convolution_param']['stride_w'])
+                stride_h = int(layer['convolution_param']['stride_h'])
+                pad_w = int(layer['convolution_param']['pad_w'])
+                pad_h = int(layer['convolution_param']['pad_h'])
+                kernel_size = (kernel_h, kernel_w)
+                stride = (stride_h, stride_w)
+                padding = (pad_h, pad_w)
+                bias_term = layer['convolution_param']['bias_term'] != 'false'
+                models[lname] = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride = stride, padding=padding, groups = group, bias=bias_term)
+                blob_channels[tname] = out_channels
+                blob_width[tname] = 2 * blob_width[bname]
+                blob_height[tname] = 2 * blob_height[bname]
                 i = i + 1
             elif ltype == 'Reshape':
                 reshape_dims = layer['reshape_param']['shape']['dim']
