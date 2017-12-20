@@ -38,7 +38,7 @@ class AnnotatedData(nn.Module):
         label = self.net.blobs['label'].data
         data = torch.from_numpy(data)
         label = torch.from_numpy(label)
-        return Variable(data), Variable(label)
+        return Variable(data.cuda()), Variable(label.cuda())
 
 class FCView(nn.Module):
     def __init__(self):
@@ -372,7 +372,13 @@ class CaffeNet(nn.Module):
             label = inputs[1]
             self.blobs['data'] = data
             self.blobs['label'] = label
-        else:
+            if self.has_mean:
+                nB = data.data.size(0)
+                nC = data.data.size(1)
+                nH = data.data.size(2)
+                nW = data.data.size(3)
+                data = data - Variable(self.mean_img.view(1, nC, nH, nW).expand(nB, nC, nH, nW))
+        elif len(inputs) == 1:
             data = inputs[0]
             self.blobs['data'] = data
             if self.has_mean:
