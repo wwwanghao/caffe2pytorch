@@ -338,16 +338,24 @@ class CaffeNet(nn.Module):
             outputs.append(self.blobs[name])
         return outputs
 
-    def forward(self, data):
-        if self.has_mean:
-            nB = data.data.size(0)
-            nC = data.data.size(1)
-            nH = data.data.size(2)
-            nW = data.data.size(3)
-            data = data - Variable(self.mean_img.view(1, nC, nH, nW).expand(nB, nC, nH, nW))
-
+    def forward(self, *inputs): 
         self.blobs = OrderedDict()
-        self.blobs['data'] = data
+      
+        if len(inputs) >= 2:
+            data = inputs[0]
+            label = inputs[1]
+            self.blobs['data'] = data
+            self.blobs['label'] = label
+        else:
+            data = inputs[0]
+            self.blobs['data'] = data
+            if self.has_mean:
+                nB = data.data.size(0)
+                nC = data.data.size(1)
+                nH = data.data.size(2)
+                nW = data.data.size(3)
+                data = data - Variable(self.mean_img.view(1, nC, nH, nW).expand(nB, nC, nH, nW))
+
         
         layers = self.net_info['layers']
         layer_num = len(layers)
@@ -356,12 +364,16 @@ class CaffeNet(nn.Module):
             layer = layers[i]
             lname = layer['name']
             ltype = layer['type']
+            if ltype in ['Data', 'AnnotatedData']:
+                i = i + 1
+                continue
+
             tname = layer['top']
             bname = layer['bottom']
             bnames = bname if type(bname) == list else [bname]
             tnames = tname if type(tname) == list else [tname]
 
-            if ltype in ['Data', 'Accuracy', 'SoftmaxWithLoss', 'Region']:
+            if ltype in ['Accuracy', 'SoftmaxWithLoss', 'Region']:
                 i = i + 1
             else:
                 bdatas = [self.blobs[name] for name in bnames]
@@ -469,7 +481,7 @@ class CaffeNet(nn.Module):
                     if len(lmap[lname].blobs) > 1:
                         self.models[lname].bias.data.copy_(torch.from_numpy(np.array(lmap[lname].blobs[1].data)))
                 i = i + 1
-            elif ltype in ['Pooling', 'Eltwise', 'ReLU', 'Region', 'Permute', 'Flatten', 'Slice', 'Concat', 'Softmax', 'SoftmaxWithLoss', 'LRN', 'Dropout', 'Reshape', 'PriorBox', 'DetectionOutput']:
+            elif ltype in ['Data', 'AnnotatedData', 'Pooling', 'Eltwise', 'ReLU', 'Region', 'Permute', 'Flatten', 'Slice', 'Concat', 'Softmax', 'SoftmaxWithLoss', 'LRN', 'Dropout', 'Reshape', 'PriorBox', 'DetectionOutput']:
                 i = i + 1
             else:
                 print('load_weights: unknown type %s' % ltype)
@@ -489,14 +501,14 @@ class CaffeNet(nn.Module):
             blob_channels['data'] = int(props['input_shape']['dim'][1])
             blob_height['data'] = int(props['input_shape']['dim'][2])
             blob_width['data'] = int(props['input_shape']['dim'][3])
-
+    
             self.width = int(props['input_shape']['dim'][3])
             self.height = int(props['input_shape']['dim'][2])
-        else:
+        elif props.has_key('input_dim'):
             blob_channels['data'] = int(props['input_dim'][1])
             blob_height['data'] = int(props['input_dim'][2])
             blob_width['data'] = int(props['input_dim'][3])
-
+    
             self.width = int(props['input_dim'][3])
             self.height = int(props['input_dim'][2])
 
@@ -511,7 +523,12 @@ class CaffeNet(nn.Module):
             layer = layers[i]
             lname = layer['name']
             ltype = layer['type']
-            if ltype == 'Data':
+            if ltype in ['Data', 'AnnotatedData']:
+                blob_channels['data'] = len(layer['transform_param']['mean_value'])
+                blob_height['data'] = len(layer['transform_param']['resize_param']['height'])
+                blob_width['data'] = len(layer['transform_param']['resize_param']['width'])
+                self.height = blob_height['data']
+                self.width = blob_width['data']
                 i = i + 1
                 continue
             bname = layer['bottom']
