@@ -65,7 +65,7 @@ if __name__ == '__main__':
         blob_names = blobs.keys()
         for blob_name in blob_names:
             if args.cuda:
-                data = blobs[blob_name].data.cpu().numpy()
+                blob_data = blobs[blob_name].data.cpu().numpy()
             else:
-                data = blobs[blob_name].data.numpy()
-            print('[%d] %-30s pytorch_shape: %-20s' % (i, blob_name, data.shape))
+                blob_data = blobs[blob_name].data.numpy()
+            print('[%d] %-30s pytorch_shape: %-20s mean: %f' % (i, blob_name, blob_data.shape, blob_data.mean()))
