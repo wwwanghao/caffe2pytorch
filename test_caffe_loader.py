@@ -45,7 +45,6 @@ if __name__ == '__main__':
     parser.add_argument('--data_protofile', default='', type=str)
     parser.add_argument('--net_protofile', default='', type=str)
     parser.add_argument('--weightfile', default='', type=str)
-    parser.add_argument('--synset_words', default='', type=str)
     parser.add_argument('--cuda', action='store_true', help='enables cuda')
 
     args = parser.parse_args()
