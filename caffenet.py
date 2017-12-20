@@ -1,4 +1,5 @@
 # 2017.12.16 by xiaohang
+import random
 import numpy as np
 import math
 import torch
@@ -14,6 +15,30 @@ import caffe.proto.caffe_pb2 as caffe_pb2
 from torch.legacy.nn import SpatialCrossMapLRN as SpatialCrossMapLRNOld
 from itertools import product as product
 from detection import Detection
+
+class AnnotatedData(nn.Module):
+    def __init__(self, layer):
+        super(AnnotatedData, self).__init__()
+        net_info = OrderedDict()
+        props = OrderedDict()
+        props['name'] = 'temp network'
+        net_info['props'] = props
+        net_info['layers'] = [layer]
+
+        rand_val = random.random()
+        protofile = '.annotated_data%f.prototxt' % rand_val
+        save_prototxt(net_info, protofile)
+        weightfile = '.annotated_data%f.caffemodel' % rand_val
+        open(weightfile, 'w').close()
+        self.net = caffe.Net(protofile, weightfile, caffe.TRAIN)
+
+    def forward(self):
+        self.net.forward()
+        data = self.net.blobs['data'].data
+        label = self.net.blobs['label'].data
+        data = torch.from_numpy(data)
+        label = torch.from_numpy(label)
+        return Variable(data), Variable(label)
 
 class FCView(nn.Module):
     def __init__(self):
@@ -305,9 +330,10 @@ class PriorBox(nn.Module):
             return Variable(output)
 
 class CaffeNet(nn.Module):
-    def __init__(self, protofile, width=None, height=None):
+    def __init__(self, protofile, width=None, height=None, omit_data_layer=True):
         super(CaffeNet, self).__init__()
         self.net_info = parse_prototxt(protofile)
+        self.omit_data_layer = omit_data_layer
         self.models = self.create_network(self.net_info, width, height)
         for name,model in self.models.items():
             self.add_module(name, model)
@@ -364,15 +390,25 @@ class CaffeNet(nn.Module):
             layer = layers[i]
             lname = layer['name']
             ltype = layer['type']
+            tname = layer['top']
+            tnames = tname if type(tname) == list else [tname]
             if ltype in ['Data', 'AnnotatedData']:
+                if not self.omit_data_layer:
+                    tdatas = self._modules[lname]()
+                    if type(tdatas) != tuple:
+                        tdatas = (tdatas,)
+    
+                    assert(len(tdatas) == len(tnames))
+                    for index, tdata in enumerate(tdatas):
+                        self.blobs[tnames[index]] = tdata
+                    output_size = self.blobs[tnames[0]].size()
+                    if self.verbose:
+                        print('forward %-30s produce -> %s' % (lname, list(output_size)))
                 i = i + 1
                 continue
 
-            tname = layer['top']
             bname = layer['bottom']
             bnames = bname if type(bname) == list else [bname]
-            tnames = tname if type(tname) == list else [tname]
-
             if ltype in ['Accuracy', 'SoftmaxWithLoss', 'Region']:
                 i = i + 1
             else:
@@ -524,6 +560,9 @@ class CaffeNet(nn.Module):
             lname = layer['name']
             ltype = layer['type']
             if ltype in ['Data', 'AnnotatedData']:
+                if not self.omit_data_layer:
+                    if ltype == 'AnnotatedData':
+                        models[lname] = AnnotatedData(layer)
                 blob_channels['data'] = len(layer['transform_param']['mean_value'])
                 blob_height['data'] = len(layer['transform_param']['resize_param']['height'])
                 blob_width['data'] = len(layer['transform_param']['resize_param']['width'])
