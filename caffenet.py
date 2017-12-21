@@ -14,11 +14,11 @@ import caffe
 import caffe.proto.caffe_pb2 as caffe_pb2
 from torch.legacy.nn import SpatialCrossMapLRN as SpatialCrossMapLRNOld
 from itertools import product as product
-from detection import Detection
+from detection import Detection, MultiBoxLoss
 
-class AnnotatedData(nn.Module):
+class CaffeData(nn.Module):
     def __init__(self, layer):
-        super(AnnotatedData, self).__init__()
+        super(CaffeData, self).__init__()
         net_info = OrderedDict()
         props = OrderedDict()
         props['name'] = 'temp network'
@@ -26,9 +26,9 @@ class AnnotatedData(nn.Module):
         net_info['layers'] = [layer]
 
         rand_val = random.random()
-        protofile = '.annotated_data%f.prototxt' % rand_val
+        protofile = '.temp_data%f.prototxt' % rand_val
         save_prototxt(net_info, protofile)
-        weightfile = '.annotated_data%f.caffemodel' % rand_val
+        weightfile = '.temp_data%f.caffemodel' % rand_val
         open(weightfile, 'w').close()
         self.net = caffe.Net(protofile, weightfile, caffe.TRAIN)
 
@@ -567,8 +567,7 @@ class CaffeNet(nn.Module):
             ltype = layer['type']
             if ltype in ['Data', 'AnnotatedData']:
                 if not self.omit_data_layer:
-                    if ltype == 'AnnotatedData':
-                        models[lname] = AnnotatedData(layer)
+                    models[lname] = CaffeData(layer)
                 blob_channels['data'] = len(layer['transform_param']['mean_value'])
                 blob_height['data'] = len(layer['transform_param']['resize_param']['height'])
                 blob_width['data'] = len(layer['transform_param']['resize_param']['width'])
@@ -775,6 +774,19 @@ class CaffeNet(nn.Module):
                 conf_thresh = float(layer['detection_output_param']['confidence_threshold'])
                 nms_thresh = float(layer['detection_output_param']['nms_param']['nms_threshold'])
                 models[lname] = Detection(num_classes, bkg_label, top_k, conf_thresh, nms_thresh, keep_top_k)
+                blob_channels[tname] = 1
+                blob_width[tname] = 1
+                blob_height[tname] = 1
+                i = i + 1
+            elif ltype == 'MultiBoxLoss':
+                num_classes = int(layer['multibox_loss_param']['num_classes'])
+                overlap_threshold = float(layer['multibox_loss_param']['overlap_threshold'])
+                prior_for_matching = layer['multibox_loss_param']['use_prior_for_matching'] == 'true'
+                bkg_label = int(layer['multibox_loss_param']['background_label_id'])
+                neg_mining = True
+                neg_pos = float(layer['multibox_loss_param']['neg_pos_ratio'])
+                neg_overlap = float(layer['multibox_loss_param']['neg_overlap'])
+                models[lname] = MultiBoxLoss(num_classes, overlap_threshold, prior_for_matching, bkg_label, neg_mining, neg_pos, neg_overlap, use_gpu=True)
                 blob_channels[tname] = 1
                 blob_width[tname] = 1
                 blob_height[tname] = 1
